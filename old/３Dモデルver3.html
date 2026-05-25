@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Booth Layout Simulator v17</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background: #f0f0f0; }
+        #ui { 
+            position: absolute; top: 10px; left: 10px; 
+            background: rgba(255,255,255,0.95); padding: 15px 20px; 
+            border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            width: 310px; max-height: 95vh; overflow-y: auto; z-index: 100;
+        }
+        h3 { margin: 15px 0 8px 0; font-size: 14px; border-left: 4px solid #0047AB; padding-left: 8px; }
+        .section { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .input-group { display: flex; align-items: center; gap: 5px; margin-bottom: 8px; }
+        input[type="number"] { width: 55px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
+        button { 
+            display: block; width: 100%; margin-bottom: 5px; padding: 8px; 
+            cursor: pointer; background: #0047AB; color: white; border: none; border-radius: 6px;
+            font-weight: bold; font-size: 12px;
+        }
+        button:hover { background: #002d6b; }
+        button.wall-btn { background: #28a745; }
+        .info { font-size: 11px; color: #444; line-height: 1.4; background: #fff9db; padding: 10px; border-radius: 6px; }
+        kbd { background: #eee; border: 1px solid #ccc; padding: 1px 3px; border-radius: 3px; font-family: monospace; }
+    </style>
+</head>
+<body>
+
+<div id="ui">
+    <div class="section">
+        <h3>1. グリッド設定 (1M単位)</h3>
+        <div class="input-group">
+            <label>横幅W:</label><input type="number" id="gridW" value="10">
+            <label>奥行D:</label><input type="number" id="gridD" value="10">
+            <button onclick="updateGrid()" style="width:auto; margin:0; padding:5px 10px;">更新</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>2. 壁面の作成</h3>
+        <div class="input-group">
+            <label>幅W:</label><input type="number" id="wallW" value="3.0" step="0.1">
+            <label>高さH:</label><input type="number" id="wallH" value="2.7" step="0.1">
+        </div>
+        <div class="input-group">
+            <label>壁の色:</label>
+            <input type="color" id="wallColor" value="#0047AB" style="width: 100%; height: 30px; padding: 0; border: none; cursor: pointer;">
+        </div>
+        <button class="wall-btn" onclick="addCustomWall()">壁を追加</button>
+    </div>
+
+    <div class="section">
+        <h3>3. 什器配置 (W/H/D寸法付)</h3>
+        <button onclick="addDetailedItem('moni65')">モニター台 65型 (W1.8/H2.4/D0.45)</button>
+        <button onclick="addDetailedItem('demo')">デモ台 PC付 (W0.7/H0.6/D0.6)</button>
+        <button onclick="addSimpleItem('pillar')">柱 (W0.5/H2.2/D0.5)</button>
+        <button onclick="addDetailedItem('pillar_led')">柱 LED付 (W0.5/H2.7/D0.5)</button>
+        <button onclick="addSimpleItem('lease_counter')">リースカウンター (W1.2/H0.93/D0.6)</button>
+        <button onclick="addSimpleItem('pamph')">パンフ台 (W0.5/H1.2/D0.5)</button>
+    </div>
+
+    <div class="section">
+        <h3>4. 操作ガイド (Mac/Win両対応)</h3>
+        <div class="info" id="guideInfo">
+            ・<b>ドラッグ</b>：移動<br>
+            ・<kbd>Shift</kbd> + ドラッグ：<b>回転</b> (Mac/Win共通)<br>
+            ・<kbd>Option</kbd> (WinはAlt) + ドラッグ：<b>壁の伸縮</b><br>
+            ・<kbd>Command</kbd> (WinはCtrl) + ドラッグ：<b>複製</b><br>
+            ・<kbd>Backspace</kbd>：削除
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>5. 視点切替</h3>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px;">
+            <button onclick="switchView('orbit')">自由視点</button>
+            <button onclick="switchView('top')">真上</button>
+            <button onclick="switchView('south')">南から (正面)</button>
+            <button onclick="switchView('north')">北から (背面)</button>
+            <button onclick="switchView('east')">東から (右横)</button>
+            <button onclick="switchView('west')">西から (左横)</button>
+        </div>
+    </div>
+</div>
+
+<script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // --- HTMLを修正せずにUIとガイドを追加拡張 ---
+    function enhanceUI() {
+        const ui = document.getElementById('ui');
+        const sections = document.querySelectorAll('.section');
+        
+        // サイドバー開閉
+        if(!document.getElementById('toggleMenuBtn')) {
+            ui.style.transition = 'transform 0.3s ease-in-out';
+            const toggleBtn = document.createElement('button');
+            toggleBtn.id = 'toggleMenuBtn'; toggleBtn.innerText = '◀ 閉じる';
+            toggleBtn.style.position = 'absolute'; toggleBtn.style.top = '10px'; toggleBtn.style.left = '370px';
+            toggleBtn.style.zIndex = '101'; toggleBtn.style.width = 'auto'; toggleBtn.style.padding = '10px 15px';
+            toggleBtn.style.background = '#0047AB'; toggleBtn.style.color = '#fff'; toggleBtn.style.border = 'none';
+            toggleBtn.style.borderRadius = '8px'; toggleBtn.style.cursor = 'pointer';
+            let isMenuOpen = true;
+            toggleBtn.onclick = () => {
+                if (isMenuOpen) { ui.style.transform = 'translateX(-120%)'; toggleBtn.style.left = '10px'; toggleBtn.innerText = '▶ メニュー'; toggleBtn.style.background = '#28a745'; }
+                else { ui.style.transform = 'translateX(0)'; toggleBtn.style.left = '370px'; toggleBtn.innerText = '◀ 閉じる'; toggleBtn.style.background = '#0047AB'; }
+                isMenuOpen = !isMenuOpen;
+            };
+            document.body.appendChild(toggleBtn);
+        }
+        if(sections[0] && !document.getElementById('btnCompass')) {
+            sections[0].insertAdjacentHTML('beforeend', '<button id="btnCompass" onclick="toggleCompass()" style="background:#6c757d; margin-top:8px;">床の方位・高さゲージ ON/OFF</button>');
+        }
+        if(sections[2] && !document.getElementById('btnPerson')) {
+            sections[2].insertAdjacentHTML('beforeend', '<button id="btnPerson" onclick="addDetailedItem(\'person\')" style="background:#28a745; margin-top:10px;">人の模型 (170cm)</button>');
+            sections[2].insertAdjacentHTML('beforeend', '<button id="btnText" onclick="addTextPanelPrompt()" style="background:#17a2b8;">テキストを追加 (Tキー)</button>');
+            
+            sections[2].insertAdjacentHTML('beforeend', '<input type="file" id="imageInput" accept="image/*" style="display:none;">');
+            sections[2].insertAdjacentHTML('beforeend', '<button id="btnImageUpload" style="background:#e83e8c; margin-top:5px;">🖼️ 画像パネルを追加</button>');
+            
+            sections[2].insertAdjacentHTML('beforeend', '<div style="display:flex; justify-content:space-between; margin-top:5px;" id="customShapeBtns"><button id="btnCustomBox" onclick="addCustomShapePrompt(\'box\')" style="width:48%; background:#fd7e14;">📦 カスタム四角</button><button id="btnCustomCylinder" onclick="addCustomShapePrompt(\'cylinder\')" style="width:48%; background:#fd7e14;">⚪ カスタム丸</button></div>');
+            
+            document.getElementById('btnImageUpload').onclick = () => document.getElementById('imageInput').click();
+            document.getElementById('imageInput').onchange = (e) => {
+                if(e.target.files && e.target.files[0]) handleImageUpload(e.target.files[0]);
+                e.target.value = ''; 
+            };
+        }
+        
+        if(sections[4] && !document.getElementById('btnSnapshot')) {
+            sections[4].insertAdjacentHTML('beforeend', '<button id="btnSnapshot" onclick="takeSnapshot()" style="background:#dc3545; margin-top:10px;">📷 画像として保存 (PNG)</button>');
+        }
+        
+        if(!document.getElementById('saveSlotSection')) {
+            const saveSec = document.createElement('div');
+            saveSec.className = 'section';
+            saveSec.id = 'saveSlotSection';
+            saveSec.style.borderBottom = 'none';
+            saveSec.style.marginBottom = '0';
+            saveSec.innerHTML = `
+                <h3>6. データ保存 / 読込</h3>
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                    <button onclick="saveSlot(1)" style="width:48%; background:#17a2b8;">保存 1</button>
+                    <button onclick="loadSlot(1)" style="width:48%; background:#6c757d;">読込 1</button>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                    <button onclick="saveSlot(2)" style="width:48%; background:#17a2b8;">保存 2</button>
+                    <button onclick="loadSlot(2)" style="width:48%; background:#6c757d;">読込 2</button>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <button onclick="saveSlot(3)" style="width:48%; background:#17a2b8;">保存 3</button>
+                    <button onclick="loadSlot(3)" style="width:48%; background:#6c757d;">読込 3</button>
+                </div>
+            `;
+            ui.appendChild(saveSec);
+        }
+
+        const guide = document.getElementById('guideInfo');
+        if(guide) {
+            guide.innerHTML = '<b>【視点カメラ】</b><br>・右ドラッグ：<b>回転</b><br>・<kbd>Shift</kbd> (or Cmd)+左ドラッグ：<b>水平移動</b><br>・ホイール：ズーム<br><br><b>【什器・壁・画像】</b><br>・左ドラッグ：<b>移動</b><br>・<kbd>R</kbd>+左ドラッグ：<b>回転</b><br>・<kbd>C</kbd>+左ドラッグ：<b>複製</b><br>・<kbd>Opt/Alt</kbd>+左ドラッグ：<b>壁/画像の伸縮</b><br>・<kbd>↑</kbd> <kbd>↓</kbd>：<b>高さ調整</b>(人以外)<br>・ダブルクリック：<b>テキスト/図形編集</b><br>・<kbd>Cmd/Ctrl</kbd>+<kbd>Z</kbd>：<b>元に戻す</b>';
+        }
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enhanceUI); else enhanceUI();
+
+    // --- メインシーン構築 ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf0f0f0);
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(10, 10, 10);
+    
+    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.autoClear = false; 
+    document.body.appendChild(renderer.domElement);
+    scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+    const sun = new THREE.DirectionalLight(0xffffff, 0.5);
+    sun.position.set(10, 20, 10); sun.castShadow = true; scene.add(sun);
+
+    const guideLineMat = new THREE.LineDashedMaterial({ color: 0x0047AB, dashSize: 0.1, gapSize: 0.1 });
+    const guideLineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,-10,0)]);
+    const guideLine = new THREE.Line(guideLineGeo, guideLineMat);
+    guideLine.computeLineDistances();
+    guideLine.visible = false;
+    scene.add(guideLine);
+
+    const miniCompassScene = new THREE.Scene();
+    const compassCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+    miniCompassScene.add(new THREE.AxesHelper(1.5));
+    function makeMiniLabel(t, c, p) {
+        const cv = document.createElement('canvas'); cv.width=128; cv.height=128;
+        const ctx = cv.getContext('2d'); ctx.fillStyle=c; ctx.font='bold 48px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(t,64,64);
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({map: new THREE.CanvasTexture(cv), depthTest: false}));
+        sp.position.copy(p); return sp;
+    }
+    miniCompassScene.add(makeMiniLabel('北', '#000000', new THREE.Vector3(0,0,-2.5)));
+    miniCompassScene.add(makeMiniLabel('南', '#000000', new THREE.Vector3(0,0,2.5)));
+    miniCompassScene.add(makeMiniLabel('東', '#000000', new THREE.Vector3(2.5,0,0)));
+    miniCompassScene.add(makeMiniLabel('西', '#000000', new THREE.Vector3(-2.5,0,0)));
+
+    let gridGroup = new THREE.Group();
+    let floorCompassGroup = new THREE.Group();
+    scene.add(gridGroup); scene.add(floorCompassGroup);
+    window.toggleCompass = () => { floorCompassGroup.visible = !floorCompassGroup.visible; };
+    
+    function createFloorLabel(t) {
+        const c = document.createElement('canvas'); c.width = 256; c.height = 128;
+        const ctx = c.getContext('2d'); ctx.fillStyle = '#999'; ctx.font = 'bold 50px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(t, 128, 64);
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(3, 1.5), new THREE.MeshBasicMaterial({map: new THREE.CanvasTexture(c), transparent:true, depthTest:false}));
+        m.rotation.x = -Math.PI/2; return m;
+    }
+
+    // ★ グリッド更新時に高さゲージ(0〜4m)も生成
+    window.updateGrid = () => {
+        gridGroup.clear(); floorCompassGroup.clear();
+        const w = parseFloat(document.getElementById('gridW').value)||10, d = parseFloat(document.getElementById('gridD').value)||10;
+        const mat = new THREE.LineBasicMaterial({color: 0xcccccc});
+        
+        for(let i=-d/2; i<=d/2; i++) gridGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-w/2,0,i), new THREE.Vector3(w/2,0,i)]), mat));
+        for(let i=-w/2; i<=w/2; i++) gridGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(i,0,-d/2), new THREE.Vector3(i,0,d/2)]), mat));
+        
+        const n=createFloorLabel('北 (N)'); n.position.set(0,0.01,-d/2-1.5); floorCompassGroup.add(n);
+        const s=createFloorLabel('南 (S)'); s.position.set(0,0.01,d/2+1.5); s.rotation.z=Math.PI; floorCompassGroup.add(s);
+        const e=createFloorLabel('東 (E)'); e.position.set(w/2+1.5,0.01,0); e.rotation.z=Math.PI/2; floorCompassGroup.add(e);
+        const w_lbl=createFloorLabel('西 (W)'); w_lbl.position.set(-w/2-1.5,0.01,0); w_lbl.rotation.z=-Math.PI/2; floorCompassGroup.add(w_lbl);
+
+        // --- 高さゲージ(0〜4m)の作成 ---
+        const gaugeGroup = new THREE.Group();
+        const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,4,0)]);
+        const lineMatGauge = new THREE.LineBasicMaterial({ color: 0x888888 });
+        gaugeGroup.add(new THREE.Line(lineGeo, lineMatGauge));
+        
+        for(let i=1; i<=4; i++) {
+            // 横の目盛り線
+            const tickGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,i,0), new THREE.Vector3(0.3,i,0)]);
+            gaugeGroup.add(new THREE.Line(tickGeo, lineMatGauge));
+            // スプライト文字 (常にカメラを向く)
+            const cv = document.createElement('canvas'); cv.width=128; cv.height=64;
+            const ctx = cv.getContext('2d'); ctx.fillStyle='#555'; ctx.font='bold 36px sans-serif'; ctx.textBaseline='middle'; ctx.fillText(i+'m', 10, 32);
+            const sp = new THREE.Sprite(new THREE.SpriteMaterial({map: new THREE.CanvasTexture(cv)}));
+            sp.position.set(0.6, i, 0); // 目盛り線の横に配置
+            sp.scale.set(0.8, 0.4, 1);
+            gaugeGroup.add(sp);
+        }
+        // グリッドの左奥（西・北寄り）角から少し外側に配置
+        gaugeGroup.position.set(-w/2 - 0.5, 0, -d/2 - 0.5);
+        floorCompassGroup.add(gaugeGroup);
+    };
+    updateGrid();
+
+    // ==========================================
+    // データ管理 (Undo & セーブ/ロード)
+    // ==========================================
+    const WALL_COLOR = 0x0047AB, objects = [];
+    let historyStack = [];
+    let isRestoring = false;
+
+    function serializeCurrentState() {
+        return JSON.stringify(objects.map(o => ({
+            p: [o.position.x, o.position.y, o.position.z],
+            r: [o.rotation.x, o.rotation.y, o.rotation.z],
+            s: [o.scale.x, o.scale.y, o.scale.z],
+            rec: o.userData.recipe, isT: o.userData.isText, isW: o.userData.isWall, isImg: o.userData.isImage, t: o.userData.type
+        })));
+    }
+
+    function saveState() {
+        if(isRestoring) return;
+        const state = serializeCurrentState();
+        if(historyStack.length > 0 && historyStack[historyStack.length-1] === state) return;
+        historyStack.push(state);
+        if(historyStack.length > 30) historyStack.shift();
+    }
+
+    function applyState(stateJson) {
+        isRestoring = true;
+        objects.forEach(o => scene.remove(o)); objects.length = 0; select(null);
+        
+        const prevState = JSON.parse(stateJson);
+        prevState.forEach(i => {
+            let o; const r = i.rec;
+            if (r.category === 'detailed') o = createDetailedItemRaw(r.type);
+            else if (r.category === 'simple') o = createSimpleItemRaw(r.type);
+            else if (r.category === 'wall') o = createWallRaw(r.w, r.h, r.color);
+            else if (r.category === 'text') o = createTextRaw(r.text, r.color, r.size, r.isBold, r.isVertical);
+            else if (r.category === 'image') o = createImageRaw(r.dataUrl, r.w, r.h);
+            else if (r.category === 'customShape') o = createCustomShapeRaw(r.shapeType, r.w, r.h, r.d, r.color);
+            
+            if (o) { 
+                o.position.set(i.p[0], i.p[1], i.p[2]); o.rotation.set(i.r[0], i.r[1], i.r[2]); o.scale.set(i.s[0], i.s[1], i.s[2]);
+                o.userData.recipe = r; o.userData.isText = i.isT; o.userData.isWall = i.isW; o.userData.isImage = i.isImg; o.userData.type = i.t;
+                scene.add(o); objects.push(o); 
+            }
+        });
+        isRestoring = false;
+    }
+
+    function undo() {
+        if(historyStack.length <= 1) return;
+        historyStack.pop(); 
+        applyState(historyStack[historyStack.length-1]);
+    }
+
+    window.saveSlot = function(slot) {
+        try {
+            const data = serializeCurrentState();
+            localStorage.setItem('booth_save_' + slot, data);
+            alert(`データ枠 ${slot} に現在の状態を保存しました！`);
+        } catch(e) {
+            alert('データ容量が大きすぎるため保存できませんでした。画像の数を減らしてください。');
+        }
+    };
+
+    window.loadSlot = function(slot) {
+        const data = localStorage.getItem('booth_save_' + slot);
+        if (data) {
+            applyState(data); saveState();
+            alert(`データ枠 ${slot} を読み込みました。`);
+        } else {
+            alert(`データ枠 ${slot} にはまだ保存されていません。`);
+        }
+    };
+
+    window.takeSnapshot = function() {
+        try {
+            renderer.render(scene, camera);
+            const dataURL = renderer.domElement.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = dataURL; a.download = 'booth_snapshot.png'; a.click();
+        } catch (e) {
+            alert('画像の保存に失敗しました。');
+        }
+    };
+
+    window.handleImageUpload = function(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let w = img.width, h = img.height;
+                const MAX = 512; 
+                if (w > MAX || h > MAX) {
+                    if (w > h) { h *= MAX/w; w = MAX; }
+                    else { w *= MAX/h; h = MAX; }
+                }
+                canvas.width = w; canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                const dataUrl = canvas.toDataURL('image/png');
+                const aspect = w / h;
+                
+                const m = createImageRaw(dataUrl, 2.0, 2.0 / aspect); 
+                m.position.set((Math.random()-0.5)*3, m.geometry.parameters.height/2, (Math.random()-0.5)*3);
+                scene.add(m); objects.push(m); select(m); saveState();
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
+
+    function createImageRaw(dataUrl, w, h) {
+        const tex = new THREE.TextureLoader().load(dataUrl);
+        const geo = new THREE.BoxGeometry(w, h, 0.05); 
+        const matFront = new THREE.MeshLambertMaterial({ map: tex, transparent: true });
+        const matSide = new THREE.MeshLambertMaterial({ color: 0xffffff });
+        const materials = [matSide, matSide, matSide, matSide, matFront, matFront];
+        const m = new THREE.Mesh(geo, materials);
+        m.userData.isImage = true;
+        m.userData.recipe = { category: 'image', dataUrl, w, h };
+        return m;
+    }
+
+    function createCustomShapeRaw(shapeType, w, h, d, color) {
+        let geo;
+        if (shapeType === 'box') geo = new THREE.BoxGeometry(1, 1, 1);
+        else geo = new THREE.CylinderGeometry(0.5, 0.5, 1, 32); 
+        const mat = new THREE.MeshLambertMaterial({ color: color });
+        const m = new THREE.Mesh(geo, mat);
+        m.scale.set(w, h, d);
+        m.userData.recipe = { category: 'customShape', shapeType, w, h, d, color };
+        return m;
+    }
+
+    window.addCustomShapePrompt = function(shapeType, editTarget = null) {
+        if(document.getElementById('customPrompt')) return;
+        const over = document.createElement('div'); over.id='customPrompt'; over.style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.3);z-index:9999;display:flex;justify-content:center;align-items:center;";
+        const dial = document.createElement('div'); dial.style="background:#fff;padding:25px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.2);width:320px;";
+        
+        const title = shapeType === 'box' ? 'カスタム図形 (四角)' : 'カスタム図形 (丸)';
+        const titlePrefix = editTarget ? '修正: ' : '追加: ';
+        const defW = editTarget ? editTarget.userData.recipe.w : 1.0;
+        const defH = editTarget ? editTarget.userData.recipe.h : 1.0;
+        const defD = editTarget ? editTarget.userData.recipe.d : 1.0;
+        const defCol = editTarget ? editTarget.userData.recipe.color : '#dddddd';
+
+        dial.innerHTML = `<h4 style="margin:0 0 15px 0; font-size:14px; text-align:center;">${titlePrefix}${title}</h4>
+            <div style="display:flex;gap:10px;margin-bottom:15px;font-size:12px;align-items:center;justify-content:center;">
+                <label>幅(W):<input type="number" id="sW" style="width:45px;" value="${defW}" step="0.1"></label>
+                <label>高さ(H):<input type="number" id="sH" style="width:45px;" value="${defH}" step="0.1"></label>
+                <label>奥行(D):<input type="number" id="sD" style="width:45px;" value="${defD}" step="0.1"></label>
+            </div>
+            <div style="display:flex;gap:10px;margin-bottom:20px;font-size:12px;align-items:center;justify-content:center;">
+                <label style="cursor:pointer;">色: <input type="color" id="sCol" value="${defCol}"></label>
+            </div>
+            <div style="display:flex;justify-content:center;gap:10px;">
+                <button id="sCan" style="background:#6c757d;color:#fff;border:none;padding:8px 20px;border-radius:4px;cursor:pointer;">キャンセル</button>
+                <button id="sAdd" style="background:#0047AB;color:#fff;border:none;padding:8px 25px;border-radius:4px;cursor:pointer;font-weight:bold;">${editTarget ? '更新' : '追加'}</button>
+            </div>`;
+        over.appendChild(dial); document.body.appendChild(over);
+        const close = () => document.body.removeChild(over);
+        
+        document.getElementById('sAdd').onclick = () => {
+            const w = parseFloat(document.getElementById('sW').value) || 1.0;
+            const h = parseFloat(document.getElementById('sH').value) || 1.0;
+            const d = parseFloat(document.getElementById('sD').value) || 1.0;
+            const col = document.getElementById('sCol').value;
+            
+            if (editTarget) {
+                const n = createCustomShapeRaw(shapeType, w, h, d, col);
+                editTarget.geometry.dispose(); editTarget.material.dispose();
+                editTarget.geometry = n.geometry; editTarget.material = n.material;
+                editTarget.scale.copy(n.scale);
+                editTarget.userData.recipe = n.userData.recipe;
+                const diffH = (h - defH) / 2;
+                editTarget.position.y += diffH;
+                selectedObjectBox.update(); guideLine.position.y = editTarget.position.y;
+            } else {
+                const m = createCustomShapeRaw(shapeType, w, h, d, col);
+                m.position.set((Math.random()-0.5)*3, h/2, (Math.random()-0.5)*3);
+                scene.add(m); objects.push(m); select(m);
+            }
+            saveState(); close();
+        };
+        document.getElementById('sCan').onclick = close;
+        document.getElementById('sW').addEventListener('keydown', (e)=>{if(e.key==='Enter') document.getElementById('sAdd').click();});
+        document.getElementById('sH').addEventListener('keydown', (e)=>{if(e.key==='Enter') document.getElementById('sAdd').click();});
+        document.getElementById('sD').addEventListener('keydown', (e)=>{if(e.key==='Enter') document.getElementById('sAdd').click();});
+    };
+
+    let isRDown = false, isCDown = false, isAltDown = false, isCtrlDown = false, isShiftDown = false;
+    let selectedObject = null;
+    let selectedObjectBox = new THREE.BoxHelper(undefined, 0x000000); 
+    scene.add(selectedObjectBox);
+
+    window.addEventListener('keydown', (e) => {
+        const tag = document.activeElement.tagName;
+        if(tag === 'INPUT' || tag === 'TEXTAREA' || document.getElementById('inlineEditor') || document.getElementById('customPrompt')) return;
+
+        if (e.key === 'Shift') isShiftDown = true;
+        if (e.ctrlKey || e.metaKey) isCtrlDown = true;
+        if (isCtrlDown && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
+        if (e.key.toLowerCase() === 'r') isRDown = true;
+        if (e.key.toLowerCase() === 'c') isCDown = true;
+        if (e.altKey) isAltDown = true;
+
+        if (e.key === 'Backspace' || e.key === 'Delete') { if(selectedObject) { scene.remove(selectedObject); objects.splice(objects.indexOf(selectedObject), 1); select(null); saveState(); } }
+        if (e.key.toLowerCase() === 't') window.addTextPanelPrompt();
+        
+        if (selectedObject && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { 
+            e.preventDefault(); 
+            if (selectedObject.userData.recipe && selectedObject.userData.recipe.type === 'person') return;
+            
+            selectedObject.position.y += (e.key === 'ArrowUp' ? 0.1 : -0.1); 
+            const minY = selectedObject.userData.type === 'group' ? 0 : (selectedObject.userData.isText ? 0 : (selectedObject.geometry.parameters.height * selectedObject.scale.y) / 2);
+            if (selectedObject.position.y < minY) selectedObject.position.y = minY;
+
+            selectedObjectBox.update();
+            guideLine.position.y = selectedObject.position.y;
+            saveState(); 
+        }
+    });
+    window.addEventListener('keyup', (e) => {
+        if(e.key === 'Shift') isShiftDown = false;
+        if(e.key.toLowerCase() === 'r') isRDown = false;
+        if(e.key.toLowerCase() === 'c') isCDown = false;
+        if(!e.altKey) isAltDown = false;
+        if(!e.ctrlKey && !e.metaKey) isCtrlDown = false;
+    });
+
+    function createDetailedItemRaw(type) {
+        const g = new THREE.Group();
+        if(type==='moni65') {
+            const w = new THREE.Mesh(new THREE.BoxGeometry(1.8, 2.4, 0.1), new THREE.MeshLambertMaterial({color: WALL_COLOR})); w.position.y=1.2; g.add(w);
+            const m = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.8, 0.05), new THREE.MeshLambertMaterial({color: 0x111111})); m.position.set(0,1.4,0.08); g.add(m);
+            const cv=document.createElement('canvas'); cv.width=256; cv.height=64; const ctx=cv.getContext('2d'); ctx.fillStyle='white'; ctx.font='bold 40px Helvetica'; ctx.textAlign='center'; ctx.fillText('sansan',128,45);
+            const logo = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.12), new THREE.MeshBasicMaterial({map: new THREE.CanvasTexture(cv), transparent:true})); logo.position.set(0, 2.1, 0.131); g.add(logo);
+            const s = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.9, 0.4), new THREE.MeshLambertMaterial({color: 0xffffff})); s.position.set(0,0.45,0.25); g.add(s);
+        } else if(type==='person') {
+            const skinMat = new THREE.MeshLambertMaterial({color: 0xf5cda3});
+            const shirtMat = new THREE.MeshLambertMaterial({color: 0x0047AB});
+            const pantsMat = new THREE.MeshLambertMaterial({color: 0x333333});
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.25, 0.2), skinMat); head.position.y = 1.575; g.add(head);
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.2), shirtMat); torso.position.y = 1.15; g.add(torso);
+            const armGeo = new THREE.BoxGeometry(0.1, 0.6, 0.2);
+            const armR = new THREE.Mesh(armGeo, shirtMat); armR.position.set(-0.25, 1.15, 0); g.add(armR);
+            const armL = new THREE.Mesh(armGeo, shirtMat); armL.position.set(0.25, 1.15, 0); g.add(armL);
+            const legGeo = new THREE.BoxGeometry(0.18, 0.85, 0.2);
+            const legR = new THREE.Mesh(legGeo, pantsMat); legR.position.set(-0.1, 0.425, 0); g.add(legR);
+            const legL = new THREE.Mesh(legGeo, pantsMat); legL.position.set(0.1, 0.425, 0); g.add(legL);
+        } else if(type==='pillar_led') {
+            const bottom = new THREE.Mesh(new THREE.BoxGeometry(0.5, 2.2, 0.5), new THREE.MeshLambertMaterial({color: 0x0047AB})); bottom.position.y = 1.1; g.add(bottom);
+            const topNode = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshLambertMaterial({color: 0xffffff, emissive: 0x222222})); topNode.position.y = 2.45; g.add(topNode);
+        } else {
+            const b = new THREE.Mesh(new THREE.BoxGeometry(0.7,0.6,0.6), new THREE.MeshLambertMaterial({color:0xffffff})); b.position.y=0.3; g.add(b);
+            const p = new THREE.Mesh(new THREE.BoxGeometry(0.4,0.25,0.02), new THREE.MeshLambertMaterial({color:0x111111})); p.position.set(0,0.7,0); g.add(p);
+        }
+        g.userData.type='group'; g.userData.recipe={category:'detailed', type:type}; return g;
+    }
+    function createSimpleItemRaw(type) {
+        let geo, col; if(type==='lease_counter'){geo=new THREE.BoxGeometry(1.2,0.93,0.6); col=0xe67e22;} else if(type==='pillar'){geo=new THREE.BoxGeometry(0.5,2.2,0.5); col=0x0047AB;} else {geo=new THREE.BoxGeometry(0.5,1.2,0.5); col=0xf1c40f;}
+        const m=new THREE.Mesh(geo, new THREE.MeshLambertMaterial({color:col})); m.userData.recipe={category:'simple',type:type}; return m;
+    }
+    function createWallRaw(w, h, c) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,0.1), new THREE.MeshLambertMaterial({color:c})); m.userData.isWall=true; m.userData.recipe={category:'wall',w:w,h:h,color:c}; return m;
+    }
+    
+    function createTextRaw(text, color, rawSize, isBold, isVertical) {
+        const size = parseInt(rawSize, 10) || 60;
+        const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); const fw = isBold ? 'bold' : 'normal';
+        ctx.font = `${fw} ${size}px sans-serif`;
+        
+        if (isVertical) {
+            canvas.width = size + 20; canvas.height = (size * text.length) + 20;
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = color; ctx.font = `${fw} ${size}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; 
+            for(let i=0; i<text.length; i++) { ctx.fillText(text[i], canvas.width/2, 10 + size*0.5 + i*size); }
+        } else {
+            const tw = ctx.measureText(text).width;
+            canvas.width = tw + 20; canvas.height = size + 20;
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = color; ctx.font = `${fw} ${size}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; 
+            ctx.fillText(text, canvas.width/2, canvas.height/2 + size*0.1);
+        }
+        
+        const tex = new THREE.CanvasTexture(canvas); tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(canvas.width*0.005, canvas.height*0.005), new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, depthWrite: false }));
+        m.userData.isText = true; m.userData.recipe = { category: 'text', text, color, size, isBold, isVertical }; return m;
+    }
+
+    window.addDetailedItem = (t) => { const g=createDetailedItemRaw(t); g.position.set((Math.random()-0.5)*3,0,(Math.random()-0.5)*3); scene.add(g); objects.push(g); select(g); saveState(); };
+    window.addSimpleItem = (t) => { const m=createSimpleItemRaw(t); m.position.set((Math.random()-0.5)*3, m.geometry.parameters.height/2, (Math.random()-0.5)*3); scene.add(m); objects.push(m); select(m); saveState(); };
+    window.addCustomWall = () => { const m=createWallRaw(parseFloat(document.getElementById('wallW').value), parseFloat(document.getElementById('wallH').value), document.getElementById('wallColor').value); m.position.y=m.geometry.parameters.height/2; scene.add(m); objects.push(m); select(m); saveState(); };
+
+    window.addTextPanelPrompt = () => {
+        if(document.getElementById('customPrompt')) return;
+        const over = document.createElement('div'); over.id='customPrompt'; over.style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.3);z-index:9999;display:flex;justify-content:center;align-items:center;";
+        const dial = document.createElement('div'); dial.style="background:#fff;padding:25px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.2);width:320px;";
+        dial.innerHTML = `<h4 style="margin:0 0 15px 0; font-size:14px; text-align:center;">新規テキストを追加</h4>
+            <input type="text" id="tInputN" style="width:100%;padding:8px;margin-bottom:15px;box-sizing:border-box;border:1px solid #ccc;border-radius:4px;" value="テキスト">
+            <div style="display:flex;gap:10px;margin-bottom:20px;font-size:12px;align-items:center;justify-content:center;">
+                <input type="color" id="tColN" value="#111111" style="cursor:pointer;">
+                Size:<input type="number" id="tSizN" style="width:40px;" value="60">
+                <label style="cursor:pointer;"><input type="checkbox" id="tBldN" checked> 太字</label>
+                <select id="tDirN" style="padding:2px;"><option value="h">横書</option><option value="v">縦書</option></select>
+            </div>
+            <div style="display:flex;justify-content:center;gap:10px;">
+                <button id="tCanN" style="background:#6c757d;color:#fff;border:none;padding:8px 20px;border-radius:4px;cursor:pointer;">キャンセル</button>
+                <button id="tAddN" style="background:#0047AB;color:#fff;border:none;padding:8px 25px;border-radius:4px;cursor:pointer;font-weight:bold;">追加</button>
+            </div>`;
+        over.appendChild(dial); document.body.appendChild(over);
+        const close = () => document.body.removeChild(over);
+        document.getElementById('tAddN').onclick = () => {
+            const txt = document.getElementById('tInputN').value, col=document.getElementById('tColN').value, siz=document.getElementById('tSizN').value, bld=document.getElementById('tBldN').checked, isV=(document.getElementById('tDirN').value==='v');
+            if(txt) { const n=createTextRaw(txt,col,siz,bld,isV); n.position.set(0,2,0); scene.add(n); objects.push(n); select(n); saveState(); }
+            close();
+        };
+        document.getElementById('tCanN').onclick = close;
+        document.getElementById('tInputN').addEventListener('keydown', (e)=>{if(e.key==='Enter') document.getElementById('tAddN').click();});
+        document.getElementById('tInputN').focus(); document.getElementById('tInputN').select();
+    };
+
+    function showInlineEditor(target, clientX, clientY) {
+        if(document.getElementById('inlineEditor')) document.body.removeChild(document.getElementById('inlineEditor'));
+        const div = document.createElement('div'); div.id = 'inlineEditor';
+        div.style.position = 'absolute'; div.style.left = (clientX + 15) + 'px'; div.style.top = (clientY - 30) + 'px';
+        div.style.zIndex = '9999'; div.style.background = 'rgba(255,255,255,0.95)'; div.style.border = '1px solid #ccc';
+        div.style.padding = '8px'; div.style.borderRadius = '8px'; div.style.boxShadow = '0 4px 15px rgba(0,0,0,0.2)';
+        div.style.display = 'flex'; div.style.flexDirection = 'column'; div.style.gap = '5px';
+
+        const tool = document.createElement('div'); tool.style.display = 'flex'; tool.style.gap = '8px'; tool.style.alignItems = 'center'; tool.style.fontSize = '12px';
+        const col = document.createElement('input'); col.type = 'color'; col.value = target.userData.recipe.color; col.style.cursor='pointer';
+        const siz = document.createElement('input'); siz.type = 'number'; siz.value = target.userData.recipe.size; siz.style.width='40px';
+        const bld = document.createElement('input'); bld.type = 'checkbox'; bld.checked = target.userData.recipe.isBold; bld.style.cursor='pointer';
+        const lbl = document.createElement('label'); lbl.appendChild(bld); lbl.appendChild(document.createTextNode('太字'));
+        const dir = document.createElement('select'); dir.innerHTML=`<option value="h" ${!target.userData.recipe.isVertical?'selected':''}>横</option><option value="v" ${target.userData.recipe.isVertical?'selected':''}>縦</option>`;
+        const btn = document.createElement('button'); btn.innerText = 'OK'; btn.style.background='#0047AB'; btn.style.color='#fff'; btn.style.border='none'; btn.style.borderRadius='4px'; btn.style.cursor='pointer';
+        tool.appendChild(col); tool.appendChild(siz); tool.appendChild(lbl); tool.appendChild(dir); tool.appendChild(btn);
+
+        const inp = document.createElement('input'); inp.type = 'text'; inp.value = target.userData.recipe.text;
+        inp.style.background = 'transparent'; inp.style.border = '1px solid #999'; inp.style.padding='4px'; inp.style.fontSize = '14px'; inp.style.outline = 'none';
+
+        div.appendChild(tool); div.appendChild(inp); document.body.appendChild(div);
+
+        const commit = () => {
+            if(inp.value) {
+                const n = createTextRaw(inp.value, col.value, siz.value, bld.checked, dir.value==='v');
+                target.geometry.dispose(); target.material.map.dispose();
+                target.geometry = n.geometry; target.material.map = n.material.map; target.userData.recipe = n.userData.recipe; target.material.needsUpdate = true;
+                selectedObjectBox.update(); saveState();
+            }
+            if(document.body.contains(div)) document.body.removeChild(div);
+        };
+        btn.onclick = commit; inp.addEventListener('keydown', (e) => { if(e.key==='Enter') commit(); });
+        inp.focus(); inp.select();
+    }
+
+    const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(), plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+    let isDragging = false, offset = new THREE.Vector3(), intersect = new THREE.Vector3(), prevX=0, startY=0;
+
+    const orbitControls = new OrbitControls(camera, renderer.domElement);
+    orbitControls.mouseButtons = { LEFT: null, RIGHT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN };
+
+    function select(o) {
+        selectedObject = o;
+        if(o) { 
+            selectedObjectBox.setFromObject(o); selectedObjectBox.visible = true; 
+            guideLine.visible = true; guideLine.position.x = o.position.x; guideLine.position.z = o.position.z;
+        } else { 
+            selectedObjectBox.visible = false; guideLine.visible = false; 
+        }
+    }
+
+    renderer.domElement.addEventListener('dblclick', (e) => {
+        if(e.button !== 0) return;
+        mouse.x=(e.clientX/window.innerWidth)*2-1; mouse.y=-(e.clientY/window.innerHeight)*2+1;
+        ray.setFromCamera(mouse, camera); const hits = ray.intersectObjects(objects, true);
+        if(hits.length>0) { 
+            let t=hits[0].object; while(t.parent&&!t.parent.isScene) t=t.parent; 
+            if(t.userData.isText) { showInlineEditor(t, e.clientX, e.clientY); }
+            else if (t.userData.recipe && t.userData.recipe.category === 'customShape') { window.addCustomShapePrompt(t.userData.recipe.shapeType, t); }
+        }
+    });
+
+    renderer.domElement.addEventListener('pointerdown', (e) => {
+        if(e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || document.getElementById('inlineEditor') || document.getElementById('customPrompt')) return;
+
+        if(e.button === 0 && (isShiftDown || isCtrlDown)) { orbitControls.mouseButtons.LEFT = THREE.MOUSE.PAN; return; }
+        orbitControls.mouseButtons.LEFT = null;
+
+        if(e.button !== 0) return; 
+        mouse.x = (e.clientX/window.innerWidth)*2-1; mouse.y = -(e.clientY/window.innerHeight)*2+1;
+        prevX = e.clientX;
+        ray.setFromCamera(mouse, camera); const hits = ray.intersectObjects(objects, true);
+        
+        if(hits.length > 0) {
+            let t = hits[0].object; while(t.parent && !t.parent.isScene) t = t.parent;
+            isDragging = true; orbitControls.enabled = false;
+            if(isCDown) { const c=t.clone(); c.userData=JSON.parse(JSON.stringify(t.userData)); scene.add(c); objects.push(c); select(c); } else select(t);
+            startY = selectedObject.position.y;
+            plane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0,1,0), selectedObject.position);
+            if(ray.ray.intersectPlane(plane, intersect)) offset.copy(intersect).sub(selectedObject.position);
+        } else select(null);
+    });
+
+    let dragStartPos_cache = null;
+    renderer.domElement.addEventListener('pointerdown', (e) => {
+       if(selectedObject) dragStartPos_cache = selectedObject.position.clone();
+    });
+
+    renderer.domElement.addEventListener('pointermove', (e) => {
+        if(!isDragging || !selectedObject) return;
+        mouse.x=(e.clientX/window.innerWidth)*2-1; mouse.y=-(e.clientY/window.innerHeight)*2+1;
+        const dx = e.clientX - prevX;
+        
+        if(isRDown) { 
+            selectedObject.rotation.y += dx * 0.02; 
+            selectedObject.position.copy(dragStartPos_cache || selectedObject.position);
+        } else if(isAltDown && (selectedObject.userData.isWall || selectedObject.userData.isImage)) { 
+            const s = Math.max(0.1, selectedObject.scale.x + dx*0.01);
+            if(selectedObject.userData.isImage) { selectedObject.scale.set(s, s, 1); } else { selectedObject.scale.x = s; }
+        } else {
+            ray.setFromCamera(mouse, camera);
+            if(ray.ray.intersectPlane(plane, intersect)) {
+                selectedObject.position.copy(intersect.sub(offset));
+                selectedObject.position.y = startY; 
+            }
+        }
+        selectedObjectBox.update();
+        guideLine.position.x = selectedObject.position.x; guideLine.position.z = selectedObject.position.z;
+        prevX = e.clientX;
+    });
+
+    renderer.domElement.addEventListener('pointerup', () => { 
+        if(isDragging) { isDragging = false; orbitControls.enabled = true; orbitControls.mouseButtons.LEFT = null; saveState(); }
+    });
+
+    window.switchView = (m) => {
+        orbitControls.enabled = true; const w=parseFloat(document.getElementById('gridW').value)||10, d=Math.max(w,parseFloat(document.getElementById('gridD').value)||10)+10;
+        if(m==='top') camera.position.set(0,d*1.5,0); else if(m==='south') camera.position.set(0,1.5,d); else if(m==='north') camera.position.set(0,1.5,-d); 
+        else if(m==='east') camera.position.set(d,1.5,0); else if(m==='west') camera.position.set(-d,1.5,0); else camera.position.set(10,10,10);
+        orbitControls.target.set(0,0,0); orbitControls.update();
+    };
+
+    function animate() { 
+        requestAnimationFrame(animate); 
+        orbitControls.update(); 
+        
+        renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+        renderer.setScissorTest(false);
+        renderer.clear();
+        renderer.render(scene, camera); 
+        
+        const cs = 140; 
+        renderer.setViewport(window.innerWidth - cs - 20, 20, cs, cs);
+        renderer.setScissor(window.innerWidth - cs - 20, 20, cs, cs);
+        renderer.setScissorTest(true);
+        
+        const dir = new THREE.Vector3();
+        camera.getWorldDirection(dir);
+        compassCamera.position.copy(dir).multiplyScalar(-8);
+        compassCamera.up.copy(camera.up);
+        compassCamera.lookAt(0,0,0);
+        
+        renderer.render(miniCompassScene, compassCamera);
+    }
+    
+    setTimeout(saveState, 500); animate();
+    window.addEventListener('resize', () => { camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+</script>
+</body>
+</html>

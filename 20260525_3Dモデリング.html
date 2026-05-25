@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Booth Layout Simulator v7</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; overflow: hidden; font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif; background: #f0f0f0; }
+
+        #tab-bar {
+            position: absolute; top: 0; left: 0; right: 0; height: 48px;
+            background: #f5f6fa; backdrop-filter: blur(8px);
+            display: flex; align-items: center; padding: 0 16px; gap: 8px;
+            z-index: 200; border-bottom: 1px solid #ddd;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .app-title { font-size: 13px; font-weight: 700; color: #333; letter-spacing: 0.05em; margin-right: 16px; white-space: nowrap; }
+        .tab-btn { padding: 6px 20px; border: 2px solid #ddd; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; transition: all 0.2s; background: #f5f5f5; color: #888; }
+        .tab-btn:hover { background: #e8e8e8; color: #333; }
+        .tab-btn.active-ss { background: #0047AB; color: #fff; border-color: #0047AB; box-shadow: 0 2px 8px rgba(0,71,171,0.3); }
+        .tab-btn.active-bo { background: #00AEEF; color: #fff; border-color: #00AEEF; box-shadow: 0 2px 8px rgba(0,174,239,0.3); }
+        .tab-btn.active-co { background: #E60026; color: #fff; border-color: #E60026; box-shadow: 0 2px 8px rgba(230,0,38,0.3); }
+
+        /* 来場者モードバナー */
+        #visitor-banner {
+            display: none; position: absolute; top: 48px; left: 0; right: 0;
+            background: rgba(255,255,255,0.92); color: #333333; text-align: center;
+            padding: 6px 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
+            z-index: 199; border-bottom: 1px solid #ddd;
+        }
+        #visitor-banner.active { display: block; }
+        #visitor-banner kbd { background: #e0e0e0; border: 1px solid #bbb; padding: 1px 5px; border-radius: 3px; font-family: monospace; margin: 0 2px; color: #333; }
+
+        #ui {
+            position: absolute; top: 58px; left: 10px;
+            background: #f5f6fa;
+            padding: 14px 16px; border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+            width: 270px; max-height: calc(95vh - 130px); overflow-y: auto;
+            z-index: 100; border: 1px solid #e0e0e0;
+            transition: opacity 0.2s;
+        }
+        #ui.visitor-mode { opacity: 0.3; pointer-events: none; }
+        #ui.visitor-mode #visitor-btn { pointer-events: auto; opacity: 1; }
+        #ui h3 { margin: 14px 0 8px 0; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #888; padding-left: 8px; border-left: 3px solid var(--accent-color, #0047AB); }
+        #ui h3:first-child { margin-top: 0; }
+        .section { margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .input-group { display: flex; align-items: center; gap: 5px; margin-bottom: 8px; }
+        .input-group label { font-size: 11px; color: #555; white-space: nowrap; }
+        input[type="number"] { width: 55px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #333; font-size: 12px; }
+        select { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; margin-bottom: 6px; background: #fff; }
+        textarea { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; resize: vertical; min-height: 70px; font-family: inherit; }
+        .ui-btn { display: block; width: 100%; margin-bottom: 5px; padding: 8px; cursor: pointer; background: var(--accent-color, #0047AB); color: white; border: none; border-radius: 6px; font-weight: 700; font-size: 12px; transition: opacity 0.15s; }
+        .ui-btn:hover { opacity: 0.8; }
+        .ui-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .ui-btn.small { width: auto; margin: 0; padding: 5px 10px; }
+        .ui-btn.green { background: #28a745; }
+        .ui-btn.gray { background: #888; }
+        .ui-btn.orange { background: #e67e22; }
+        .ui-btn.visitor { background: #6f42c1; font-size: 13px; padding: 10px; }
+        .ui-btn.visitor.active { background: #dc3545; }
+        .ui-btn.snap-on { background: #28a745; }
+        .view-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+        .undo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 5px; }
+        .info { font-size: 10px; color: #555; line-height: 1.8; background: #fff9db; padding: 8px 10px; border-radius: 6px; border: 1px solid #f0e68c; }
+        kbd { background: #eee; border: 1px solid #ccc; padding: 1px 4px; border-radius: 3px; font-family: monospace; font-size: 10px; color: #333; }
+        #wall-design-section { display: none; }
+        #wall-design-section.visible { display: block; }
+        .selected-hint { font-size: 11px; color: #0047AB; background: #e8f0ff; padding: 5px 8px; border-radius: 4px; margin-bottom: 8px; }
+        .save-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 5px; }
+        .snap-badge { display: inline-block; font-size: 10px; background: #28a745; color: #fff; padding: 1px 6px; border-radius: 10px; margin-left: 4px; vertical-align: middle; }
+        .snap-badge.off { background: #aaa; }
+        .item-list-row { padding: 5px 8px; font-size: 11px; cursor: pointer; border-radius: 4px; margin-bottom: 2px; transition: background 0.12s; color: #333; }
+        .item-list-row:hover { background: var(--accent-bg, #e8f0ff); }
+        .item-list-row.selected { background: var(--accent-color, #0047AB); color: #fff; font-weight: 700; }
+        .item-info-row { font-size: 11px; color: #555; margin-bottom: 3px; }
+        .item-info-dist { font-size: 11px; color: var(--accent-color, #0047AB); background: var(--accent-bg, #e8f0ff); padding: 4px 8px; border-radius: 4px; margin-top: 4px; }
+        .multi-badge { display: inline-block; font-size: 10px; background: var(--accent-color, #0047AB); color: #fff; padding: 1px 6px; border-radius: 10px; margin-left: 4px; vertical-align: middle; }
+
+        #bottom-bar {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: #f5f6fa; border-top: 1px solid #ddd;
+            padding: 8px 16px; z-index: 200;
+            display: flex; align-items: center; gap: 6px; overflow-x: auto;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+            transition: opacity 0.2s;
+        }
+        #bottom-bar.visitor-mode { opacity: 0.3; pointer-events: none; }
+        .bar-label { font-size: 10px; color: #999; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; margin-right: 4px; }
+        .item-btn { padding: 7px 14px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; background: var(--accent-bg, #e8f0ff); color: #333; font-size: 12px; font-weight: 600; white-space: nowrap; transition: all 0.15s; }
+        .item-btn:hover { background: var(--accent-color, #0047AB); border-color: var(--accent-color, #0047AB); color: #fff; }
+        #bottom-bar::-webkit-scrollbar { height: 0; }
+        #ui::-webkit-scrollbar { width: 4px; }
+        #ui::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+    </style>
+</head>
+<body>
+<!-- デバッグオーバーレイ -->
+<div id="debug-overlay" style="display:none; position:absolute; top:100px; right:10px; background:rgba(255,255,255,0.92); color:#333; font-family:monospace; font-size:12px; padding:10px; border-radius:6px; z-index:300; min-width:240px; line-height:1.6; border:1px solid #ddd; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+    <div style="color:#0047AB; font-weight:bold; margin-bottom:6px;">DEBUG INFO</div>
+    <div id="dbg-mode">mode: -</div>
+    <div id="dbg-lock">pointerLock: -</div>
+    <div id="dbg-keys">keys: -</div>
+    <div id="dbg-yaw">yaw: -</div>
+    <div id="dbg-pitch">pitch: -</div>
+    <div id="dbg-pos">pos: -</div>
+    <div id="dbg-mouse">mouse: -</div>
+</div>
+
+<div id="tab-bar">
+    <div class="app-title">3D Booth Simulator</div>
+    <button class="tab-btn active-ss" onclick="switchBU('SS')" id="tab-SS">SS</button>
+    <button class="tab-btn" onclick="switchBU('BO')" id="tab-BO">BO</button>
+    <button class="tab-btn" onclick="switchBU('CO')" id="tab-CO">CO</button>
+</div>
+
+<div id="visitor-banner">
+    来場者モード &nbsp;｜&nbsp; <b>画面をクリックして開始</b> &nbsp;｜&nbsp; <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>移動 &nbsp;｜&nbsp; マウスで視点 &nbsp;｜&nbsp; <kbd>P</kbd>スクリーンショット &nbsp;｜&nbsp; <kbd>ESC</kbd>で終了
+</div>
+
+<div id="ui">
+    <!-- 来場者モード -->
+    <div class="section">
+        <button class="ui-btn visitor" id="visitor-btn" onclick="toggleVisitorMode()">来場者モードで見る</button>
+    </div>
+
+    <!-- Undo / Redo -->
+    <div class="section">
+        <h3>操作履歴</h3>
+        <div class="undo-grid">
+            <button class="ui-btn gray" id="undo-btn" onclick="undo()" disabled>↩ 元に戻す</button>
+            <button class="ui-btn gray" id="redo-btn" onclick="redo()" disabled>↪ やり直す</button>
+        </div>
+        <div style="font-size:10px;color:#aaa;text-align:center;" id="history-info">履歴なし</div>
+    </div>
+
+    <!-- グリッドスナップ -->
+    <div class="section">
+        <h3>グリッドスナップ <span class="snap-badge" id="snap-badge">ON</span></h3>
+        <div style="display:flex;gap:5px;align-items:center;margin-bottom:6px;">
+            <button class="ui-btn small snap-on" id="snap-btn" onclick="toggleSnap()" style="flex:1;">スナップ ON</button>
+            <select id="snap-size" style="width:90px;margin:0;" onchange="onSnapSizeChange()">
+                <option value="0.5">0.5m</option>
+                <option value="1" selected>1.0m</option>
+                <option value="0.25">0.25m</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- グリッド設定 -->
+    <div class="section">
+        <h3>グリッド設定 (1M単位)</h3>
+        <div class="input-group">
+            <label>横幅W:</label><input type="number" id="gridW" value="10">
+            <label>奥行D:</label><input type="number" id="gridD" value="10">
+            <button class="ui-btn small" onclick="updateGrid(); updateAreaInfo()">更新</button>
+        </div>
+    </div>
+
+    <!-- 床面積 -->
+    <div class="section" id="area-section">
+        <h3>床面積</h3>
+        <div style="font-size:11px;color:#555;line-height:2.2;">
+            総面積: <b id="area-total">-</b> &nbsp;/&nbsp; 使用: <b id="area-used">-</b><br>
+            使用率: <b id="area-pct" style="font-size:14px;color:var(--accent-color,#0047AB);">-</b>
+        </div>
+    </div>
+
+    <!-- 壁面の作成 -->
+    <div class="section">
+        <h3>壁面の作成</h3>
+        <div class="input-group">
+            <label>幅W:</label><input type="number" id="wallW" value="3.0" step="0.1">
+            <label>高さH:</label><input type="number" id="wallH" value="3.6" step="0.1">
+        </div>
+        <div class="input-group">
+            <label>壁の色:</label>
+            <input type="color" id="wallColor" value="#0047AB" style="width:100%;height:28px;padding:0;border:none;cursor:pointer;border-radius:4px;">
+        </div>
+        <div style="display:flex;gap:5px;margin-bottom:8px;">
+            <button class="ui-btn small" onclick="setWallColor('primary')" style="flex:1;">事業部色</button>
+            <button class="ui-btn small gray" onclick="setWallColor('white')" style="flex:1;">白</button>
+        </div>
+        <button class="ui-btn green" onclick="addCustomWall()">壁を追加</button>
+    </div>
+
+    <!-- 選択中の什器情報 -->
+    <div class="section" id="item-info-section" style="display:none;">
+        <h3>選択中の什器</h3>
+        <div id="item-info-name" style="font-size:12px;font-weight:700;color:#333;margin-bottom:6px;"></div>
+        <div class="item-info-row" id="item-info-pos"></div>
+        <div class="item-info-row" id="item-info-size"></div>
+        <div class="item-info-dist" id="item-info-dist" style="display:none;"></div>
+    </div>
+
+    <!-- 壁面デザイン -->
+    <div class="section" id="wall-design-section">
+        <h3>壁面デザイン</h3>
+        <div class="selected-hint" id="wall-size-hint">壁面が選択されています</div>
+        <div style="margin-bottom:6px;">
+            <label style="font-size:11px;color:#555;display:block;margin-bottom:4px;">ロゴ</label>
+            <div style="display:flex;gap:5px;">
+                <button class="ui-btn small green" onclick="applyLogo()" style="flex:1;">ロゴを貼る</button>
+                <button class="ui-btn small gray" onclick="removeLogo()" style="flex:1;">ロゴを消す</button>
+            </div>
+        </div>
+        <div style="margin-bottom:6px;">
+            <label style="font-size:11px;color:#555;display:block;margin-bottom:4px;">テキストプリセット</label>
+            <select id="text-preset" onchange="onPresetChange()">
+                <option value="名刺管理から、収益を最大化する">名刺管理から、収益を最大化する</option>
+                <option value="法人向け名刺管理サービス">法人向け名刺管理サービス</option>
+                <option value="ビジネスデータベース">ビジネスデータベース</option>
+                <option value="シェアNo.1">シェアNo.1</option>
+                <option value="5年連続シェアNo.1">5年連続シェアNo.1</option>
+                <option value="人物情報・企業情報・活動情報を一元管理">人物情報・企業情報・活動情報を一元管理</option>
+                <option value="名刺をスキャンするだけでAI活用できるデータベースを構築">名刺をスキャンするだけでAI活用できるデータベースを構築</option>
+                <option value="網羅的かつ正確なデータ基盤を構築">網羅的かつ正確なデータ基盤を構築</option>
+                <option value="担当者の異動・変更があっても顧客を失わない営業組織へ">担当者の異動・変更があっても顧客を失わない営業組織へ</option>
+                <option value="名刺をスキャンするだけで全社の人脈を共有・継承">名刺をスキャンするだけで全社の人脈を共有・継承</option>
+                <option value="名刺スキャンを体験！">名刺スキャンを体験！</option>
+                <option value="custom">── カスタム入力 ──</option>
+            </select>
+            <textarea id="wall-text" placeholder="テキストを入力（改行可）">名刺管理から、収益を最大化する</textarea>
+        </div>
+        <div style="display:flex;gap:5px;">
+            <button class="ui-btn" onclick="applyWallDesign()" style="flex:1;">テキストを適用</button>
+            <button class="ui-btn gray" onclick="clearWallText()" style="flex:1;">テキストを消す</button>
+        </div>
+    </div>
+
+    <!-- 保存・読み込み -->
+    <div class="section">
+        <h3>保存 / 読み込み</h3>
+        <div class="save-grid">
+            <button class="ui-btn green" onclick="saveToLocal()">ブラウザ保存</button>
+            <button class="ui-btn orange" onclick="loadFromLocal()">ブラウザ読込</button>
+        </div>
+        <div class="save-grid">
+            <button class="ui-btn" onclick="exportJSON()">JSONで保存</button>
+            <button class="ui-btn gray" onclick="document.getElementById('import-json').click()">JSONを読込</button>
+        </div>
+        <input type="file" id="import-json" accept=".json" style="display:none" onchange="importJSON(event)">
+    </div>
+
+    <!-- 視点切替 -->
+    <div class="section">
+        <h3>視点切替</h3>
+        <div class="view-grid">
+            <button class="ui-btn" onclick="switchView('orbit')">自由視点</button>
+            <button class="ui-btn" onclick="switchView('top')">真上</button>
+            <button class="ui-btn" onclick="switchView('south')">南 (正面)</button>
+            <button class="ui-btn" onclick="switchView('north')">北 (背面)</button>
+            <button class="ui-btn" onclick="switchView('east')">東 (右横)</button>
+            <button class="ui-btn" onclick="switchView('west')">西 (左横)</button>
+        </div>
+    </div>
+
+    <!-- 配置済み什器 -->
+    <div class="section">
+        <h3>配置済み什器</h3>
+        <div id="item-list-body" style="max-height:160px;overflow-y:auto;"></div>
+        <div id="item-list-empty" style="font-size:11px;color:#aaa;text-align:center;padding:8px;">什器なし</div>
+    </div>
+
+    <!-- 操作ガイド -->
+    <div class="section" style="border:none;margin:0;padding:0;">
+        <h3>操作ガイド (Mac / Win)</h3>
+        <div class="info">
+            ・<b>左ドラッグ</b>：什器を移動<br>
+            ・<b>右ドラッグ</b>：視点を回転<br>
+            ・<kbd>Option</kbd>/<kbd>Alt</kbd> + 右ドラッグ：視点を<b>パン移動</b><br>
+            ・<kbd>Shift</kbd> + クリック：<b>複数選択</b><br>
+            ・<kbd>Shift</kbd> + 左ドラッグ：什器を<b>回転</b>（単体選択時）<br>
+            ・<kbd>Option</kbd>/<kbd>Alt</kbd> + 左ドラッグ：<b>壁の伸縮</b><br>
+            ・<kbd>Cmd</kbd>/<kbd>Ctrl</kbd> + 左ドラッグ：<b>複製</b><br>
+            ・<kbd>Cmd</kbd>/<kbd>Ctrl</kbd> + <kbd>Z</kbd>：<b>元に戻す</b><br>
+            ・<kbd>Cmd</kbd>/<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>：<b>やり直す</b><br>
+            ・<kbd>Backspace</kbd>：選択中を<b>削除</b><br>
+            ・<kbd>ESC</kbd>：複数選択を<b>解除</b><br>
+            ・<b>スクロール</b>：ズーム
+        </div>
+    </div>
+</div>
+
+<div id="bottom-bar">
+    <span class="bar-label">什器を追加</span>
+    <div id="item-buttons" style="display:flex;gap:6px;align-items:center;"></div>
+</div>
+
+<script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+    const LOGO_DATA_URL = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA0JCgsKCA0LCgsODg0PEyAVExISEyccHhcgLikxMC4pLSwzOko+MzZGNywtQFdBRkxOUlNSMj5aYVpQYEpRUk//2wBDAQ4ODhMREyYVFSZPNS01T09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0//wAARCAEsASwDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD06iiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAI7ieK2t5J53CRRqWZj2ArzfWvG2oXcrJpzG0t+gIA3t7k9vwroviJcPDoKRISBPMFb3ABOPzArzOu/C0Ytc0jixNWSfKi1JqV/K26S+uWPqZm/xq1Z+IdYsnBhv5yB/DI29fyNdhpHg3RrnTIJ5JZZ3kQMzpJhQSOgA9KbefD60fmyvZoj6SAOP6GtHXo35X+RCo1bXTOg8Oahc6po0N5dxJHJJnAXoQDjPtmrGsXM9lpN1dW0aySwxl1Vuhx1/Sp7aCO1toreIYjiQIo9gMVI6LIjI4yrDBB7ivObXNe2h3JPlt1PIrzxPrV4xL38san+GE7B+nNZ5v70tuN5cE+vmt/jXbwfDyEMxudQkK5O1Y0A47cnNLf+AbNbSR7O7nEyqSBJgqcduAMV6Kr0VovyOB0az1Zz2keLdV06ZfMne6gz80crZOPZuor0+wvIdQsoru2bdFKu5fX6H3rxGvSPhxMz6LPExyIpzt9gQD/OoxVKPLzIvDVJc3KzR8V68+hWcTwxJJNM5VQ54AAyTx17VwF34r1u7J3XzxL/dhAQD8Rz+tbHxJuN+pWdsDxHEXI92OP/Za5bTbU32o21oCV86RUyOwJ5NVh6cFTUmia9STnypg2oXztue9uWPqZW/xq7YeJdYsJA0V7JIo6xykup/P+ldmfAGleSVFxd+Zj7+5ev0xXn2oWj2GoT2cjBmhcoWHfHetITp1dEROFSnq2es+Htbh1yw8+NdkqHbLHnO0/wCBq5qF9Bp1lLd3TbYoxk46n0A9zXn3w6naPXZYQfklgJI9wRj+ZrT+Jdw629jagkI7NI3uQAB/M1xyoL23ItjrjWfsud7mHqvj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';
+
+    const BU_CONFIG = {
+        SS: { primaryColor: '#0047AB', accentBg: '#e8f0ff', accentClass: 'active-ss', items: [
+            { id: 'moni65', label: 'モニター台 65型', size: 'W1800', type: 'detailed' },
+            { id: 'demo_new', label: '新デモ台 W700', size: 'W700', type: 'detailed' },
+            { id: 'demo_old', label: '旧デモ台 W500', size: 'W500', type: 'detailed' },
+            { id: 'pillar', label: '柱', size: 'W500', type: 'simple' },
+            { id: 'pillar_led', label: '柱 LED付', size: 'W500', type: 'detailed' },
+            { id: 'lease_counter', label: 'リースカウンター', size: 'W1200', type: 'simple' },
+            { id: 'pamph', label: 'パンフ台', size: 'W500', type: 'simple' },
+        ]},
+        BO: { primaryColor: '#00AEEF', accentBg: '#e0f5fd', accentClass: 'active-bo', items: [
+            { id: 'moni65', label: 'モニター台 65型', size: 'W1800', type: 'detailed' },
+            { id: 'demo_new', label: '新デモ台 W700', size: 'W700', type: 'detailed' },
+            { id: 'demo_old', label: '旧デモ台 W500', size: 'W500', type: 'detailed' },
+            { id: 'pillar', label: '柱', size: 'W500', type: 'simple' },
+            { id: 'lease_counter', label: 'リースカウンター', size: 'W1200', type: 'simple' },
+            { id: 'pamph', label: 'パンフ台', size: 'W500', type: 'simple' },
+        ]},
+        CO: { primaryColor: '#E60026', accentBg: '#fce8ea', accentClass: 'active-co', items: [
+            { id: 'moni65', label: 'モニター台 65型', size: 'W1800', type: 'detailed' },
+            { id: 'demo_new', label: '新デモ台 W700', size: 'W700', type: 'detailed' },
+            { id: 'demo_old', label: '旧デモ台 W500', size: 'W500', type: 'detailed' },
+            { id: 'pillar', label: '柱', size: 'W500', type: 'simple' },
+            { id: 'lease_counter', label: 'リースカウンター', size: 'W1200', type: 'simple' },
+            { id: 'pamph', label: 'パンフ台', size: 'W500', type: 'simple' },
+        ]}
+    };
+    let currentBU = 'SS';
+
+    // ===== Three.js =====
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf0f0f0);
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(10, 10, 10);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
+    scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+    const sun = new THREE.DirectionalLight(0xffffff, 0.5);
+    sun.position.set(10, 20, 10); sun.castShadow = true; scene.add(sun);
+    const orbit = new OrbitControls(camera, renderer.domElement);
+    orbit.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
+    const fpsCont = new PointerLockControls(camera, renderer.domElement);
+
+    // ===== スナップ =====
+    let snapEnabled = true;
+    let snapSize = 1.0;
+
+    window.toggleSnap = function() {
+        snapEnabled = !snapEnabled;
+        const btn = document.getElementById('snap-btn');
+        const badge = document.getElementById('snap-badge');
+        btn.textContent = snapEnabled ? 'スナップ ON' : 'スナップ OFF';
+        btn.className = snapEnabled ? 'ui-btn small snap-on' : 'ui-btn small gray';
+        badge.textContent = snapEnabled ? 'ON' : 'OFF';
+        badge.className = snapEnabled ? 'snap-badge' : 'snap-badge off';
+    };
+    window.onSnapSizeChange = function() {
+        snapSize = parseFloat(document.getElementById('snap-size').value);
+    };
+
+    function snapVal(v) {
+        if (!snapEnabled) return v;
+        return Math.round(v / snapSize) * snapSize;
+    }
+
+    // ===== Undo / Redo =====
+    const undoStack = [];
+    const redoStack = [];
+    const MAX_HISTORY = 50;
+
+    function captureState() {
+        return JSON.stringify(serializeScene());
+    }
+
+    function pushHistory() {
+        undoStack.push(captureState());
+        if (undoStack.length > MAX_HISTORY) undoStack.shift();
+        redoStack.length = 0;
+        updateHistoryUI();
+    }
+
+    function updateHistoryUI() {
+        const undoBtn = document.getElementById('undo-btn');
+        const redoBtn = document.getElementById('redo-btn');
+        const info = document.getElementById('history-info');
+        undoBtn.disabled = undoStack.length === 0;
+        redoBtn.disabled = redoStack.length === 0;
+        info.textContent = undoStack.length > 0 ? `履歴 ${undoStack.length}件` : '履歴なし';
+    }
+
+    window.undo = async function() {
+        if (undoStack.length === 0) return;
+        redoStack.push(captureState());
+        const state = undoStack.pop();
+        await restoreScene(JSON.parse(state));
+        updateHistoryUI();
+    };
+
+    window.redo = async function() {
+        if (redoStack.length === 0) return;
+        undoStack.push(captureState());
+        const state = redoStack.pop();
+        await restoreScene(JSON.parse(state));
+        updateHistoryUI();
+    };
+
+    // ===== グリッド =====
+    function createDirectionLabel(text) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256; canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#999'; ctx.font = 'bold 50px sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(text, 128, 64);
+        const tex = new THREE.CanvasTexture(canvas);
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3, 1.5), new THREE.MeshBasicMaterial({map: tex, transparent: true, depthTest: false}));
+        mesh.rotation.x = -Math.PI / 2;
+        return mesh;
+    }
+
+    let gridGroup = new THREE.Group();
+    scene.add(gridGroup);
+
+    const AISLE_WIDTH = 3.0;  // 通路の幅（m）
+
+    window.updateGrid = function() {
+        while (gridGroup.children.length > 0) gridGroup.remove(gridGroup.children[0]);
+        const w = parseFloat(document.getElementById('gridW').value) || 10;
+        const d = parseFloat(document.getElementById('gridD').value) || 10;
+
+        // === 通路の床（ブース外周）===
+        const aisleW = w + AISLE_WIDTH * 2;
+        const aisleD = d + AISLE_WIDTH * 2;
+        const aisleGeo = new THREE.PlaneGeometry(aisleW, aisleD);
+        const aisleMat = new THREE.MeshBasicMaterial({ color: 0xe8e8ec, side: THREE.DoubleSide });
+        const aisle = new THREE.Mesh(aisleGeo, aisleMat);
+        aisle.rotation.x = -Math.PI / 2;
+        aisle.position.y = -0.02;
+        gridGroup.add(aisle);
+
+        // === ブース内の床（少し色違いで区別）===
+        const boothGeo = new THREE.PlaneGeometry(w, d);
+        const boothMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+        const booth = new THREE.Mesh(boothGeo, boothMat);
+        booth.rotation.x = -Math.PI / 2;
+        booth.position.y = -0.01;
+        gridGroup.add(booth);
+
+        // === 通路ラインの破線（通路の外側境界）===
+        const aisleLineMat = new THREE.LineDashedMaterial({ color: 0xaaaaaa, dashSize: 0.3, gapSize: 0.2 });
+        const outline = new THREE.LineLoop(
+            new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(-aisleW/2, 0.005, -aisleD/2),
+                new THREE.Vector3( aisleW/2, 0.005, -aisleD/2),
+                new THREE.Vector3( aisleW/2, 0.005,  aisleD/2),
+                new THREE.Vector3(-aisleW/2, 0.005,  aisleD/2),
+            ]),
+            aisleLineMat
+        );
+        outline.computeLineDistances();
+        gridGroup.add(outline);
+
+        // === ブース境界（実線で強調）===
+        const boothLineMat = new THREE.LineBasicMaterial({ color: 0x666666 });
+        const boothOutline = new THREE.LineLoop(
+            new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(-w/2, 0.006, -d/2),
+                new THREE.Vector3( w/2, 0.006, -d/2),
+                new THREE.Vector3( w/2, 0.006,  d/2),
+                new THREE.Vector3(-w/2, 0.006,  d/2),
+            ]),
+            boothLineMat
+        );
+        gridGroup.add(boothOutline);
+
+        // === グリッド線（ブース内）===
+        const gridMat = new THREE.LineBasicMaterial({ color: 0xdddddd });
+        for (let i = -d/2; i <= d/2; i++)
+            gridGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-w/2,0.007,i), new THREE.Vector3(w/2,0.007,i)]), gridMat));
+        for (let i = -w/2; i <= w/2; i++)
+            gridGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(i,0.007,-d/2), new THREE.Vector3(i,0.007,d/2)]), gridMat));
+
+        // === 方角ラベル（通路の外側に配置）===
+        const lN = createDirectionLabel('北 (N)'); lN.position.set(0,0.01,-aisleD/2-1.5); gridGroup.add(lN);
+        const lS = createDirectionLabel('南 (S)'); lS.position.set(0,0.01,aisleD/2+1.5); lS.rotation.z=Math.PI; gridGroup.add(lS);
+        const lE = createDirectionLabel('東 (E)'); lE.position.set(aisleW/2+1.5,0.01,0); lE.rotation.z=Math.PI/2; gridGroup.add(lE);
+        const lW = createDirectionLabel('西 (W)'); lW.position.set(-aisleW/2-1.5,0.01,0); lW.rotation.z=-Math.PI/2; gridGroup.add(lW);
+    };
+    updateGrid();
+
+    // ===== 寸法ラベル =====
+    let sizeLabel = null;
+
+    function createSizeLabel(text) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512; canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'rgba(0,0,0,0.75)';
+        const rx = 16;
+        ctx.beginPath();
+        ctx.moveTo(rx,0); ctx.lineTo(canvas.width-rx,0); ctx.quadraticCurveTo(canvas.width,0,canvas.width,rx);
+        ctx.lineTo(canvas.width,canvas.height-rx); ctx.quadraticCurveTo(canvas.width,canvas.height,canvas.width-rx,canvas.height);
+        ctx.lineTo(rx,canvas.height); ctx.quadraticCurveTo(0,canvas.height,0,canvas.height-rx);
+        ctx.lineTo(0,rx); ctx.quadraticCurveTo(0,0,rx,0); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 64px monospace';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(text, canvas.width/2, canvas.height/2);
+        const tex = new THREE.CanvasTexture(canvas);
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.5), new THREE.MeshBasicMaterial({map: tex, transparent: true, depthTest: false, side: THREE.DoubleSide}));
+        mesh.name = 'size_label';
+        return mesh;
+    }
+
+    function updateSizeLabel(wall) {
+        if (sizeLabel) { scene.remove(sizeLabel); sizeLabel = null; }
+        if (!wall || !wall.userData.isWall) return;
+        const actualW = (wall.geometry.parameters.width * wall.scale.x).toFixed(2);
+        const h = wall.geometry.parameters.height;
+        sizeLabel = createSizeLabel(`W: ${actualW}m`);
+        sizeLabel.position.copy(wall.position);
+        sizeLabel.position.y = h + 0.5;
+        scene.add(sizeLabel);
+    }
+
+    // ===== 什器管理 =====
+    const WALL_COLOR = () => BU_CONFIG[currentBU].primaryColor;
+    const objects = [];
+    let selectedObject = null;
+    let isShiftDown=false, isCtrlDown=false, isAltDown=false;
+
+    // 複数選択
+    const multiSelected = new Set();
+    let multiDragStartPositions = new Map();
+
+    const ITEM_LABELS = {
+        moni65: 'モニター台 65型',
+        demo_new: '新デモ台 W700', demo_old: '旧デモ台 W500',
+        demo: 'デモ台 PC付',
+        pillar: '柱', pillar_led: '柱 LED付',
+        lease_counter: 'リースカウンター', pamph: 'パンフ台',
+    };
+    function getItemName(obj) {
+        if (obj.userData.isWall) return '壁面';
+        return ITEM_LABELS[obj.userData.itemType] || obj.userData.itemType || '不明';
+    }
+    function highlight(obj, on=true) {
+        obj.traverse(n => { if(n.material&&n.material.emissive) n.material.emissive.set(on ? 0x333333 : 0x000000); });
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Shift') isShiftDown = true;
+        if (e.ctrlKey || e.metaKey) isCtrlDown = true;
+        if (e.altKey) isAltDown = true;
+        if (visitorMode) {
+            visitorKeys[e.key] = true;
+            // スクリーンショット（Pキー）
+            if (e.key === 'p' || e.key === 'P') {
+                renderer.render(scene, camera);
+                const url = renderer.domElement.toDataURL('image/png');
+                const a = document.createElement('a');
+                a.href = url; a.download = 'booth_screenshot.png'; a.click();
+            }
+            return;
+        }
+        if (e.key === 'Escape' && multiSelected.size > 0) { select(null); return; }
+        // Undo: Cmd+Z / Ctrl+Z
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
+        // Redo: Cmd+Shift+Z / Ctrl+Shift+Z
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) { e.preventDefault(); redo(); return; }
+        if ((e.key === 'Backspace' || e.key === 'Delete') && (selectedObject || multiSelected.size > 0)) deleteSelected();
+    });
+    window.addEventListener('keyup', (e) => {
+        if (e.key === 'Shift') isShiftDown = false;
+        if (!e.ctrlKey && !e.metaKey) isCtrlDown = false;
+        if (!e.altKey) isAltDown = false;
+        if (visitorMode) visitorKeys[e.key] = false;
+    });
+
+    // ===== テクスチャ =====
+    function createTextTexture(text) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024; canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const lines = text.split('\n');
+        const fontSize = lines.length > 2 ? 60 : lines.length > 1 ? 72 : 90;
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${fontSize}px 'Hiragino Kaku Gothic ProN','Meiryo',sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        const lineH = fontSize * 1.4;
+        const startY = canvas.height/2 - (lines.length-1)*lineH/2;
+        lines.forEach((line, i) => ctx.fillText(line, canvas.width/2, startY + i*lineH));
+        return new THREE.CanvasTexture(canvas);
+    }
+
+    function createLogoTexture() {
+        return new Promise((resolve) => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024; canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const img = new Image();
+            img.onload = () => {
+                const aspect = img.width / img.height;
+                const drawH = canvas.height * 0.7;
+                const drawW = drawH * aspect;
+                ctx.drawImage(img, (canvas.width-drawW)/2, (canvas.height-drawH)/2, drawW, drawH);
+                resolve(new THREE.CanvasTexture(canvas));
+            };
+            img.src = LOGO_DATA_URL;
+        });
+    }
+
+    window.applyWallDesign = function() {
+        if (!selectedObject || !selectedObject.userData.isWall) return;
+        const text = document.getElementById('wall-text').value;
+        if (!text.trim()) return;
+        pushHistory();
+        applyTextureToWall(selectedObject, createTextTexture(text), 'text');
+        selectedObject.userData.designText = text;
+    };
+
+    window.applyLogo = async function() {
+        if (!selectedObject || !selectedObject.userData.isWall) return;
+        pushHistory();
+        applyTextureToWall(selectedObject, await createLogoTexture(), 'logo');
+    };
+
+    function applyTextureToWall(wall, texture, designType) {
+        const existing = wall.getObjectByName('wall_design');
+        if (existing) wall.remove(existing);
+        const w = wall.geometry.parameters.width * wall.scale.x;
+        const h = wall.geometry.parameters.height;
+        const mesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(w * 0.9, h * 0.6),
+            new THREE.MeshBasicMaterial({map: texture, transparent: true, depthWrite: false})
+        );
+        mesh.name = 'wall_design';
+        mesh.position.set(0, h * 0.1, 0.06);
+        mesh.userData.designType = designType;
+        wall.add(mesh);
+        wall.userData.designType = designType;
+    }
+
+    window.removeLogo = function() {
+        if (!selectedObject || !selectedObject.userData.isWall) return;
+        const ex = selectedObject.getObjectByName('wall_design');
+        if (ex && ex.userData.designType === 'logo') { pushHistory(); selectedObject.remove(ex); }
+    };
+
+    window.clearWallText = function() {
+        if (!selectedObject || !selectedObject.userData.isWall) return;
+        const ex = selectedObject.getObjectByName('wall_design');
+        if (ex && ex.userData.designType === 'text') { pushHistory(); selectedObject.remove(ex); }
+    };
+
+    window.onPresetChange = function() {
+        const sel = document.getElementById('text-preset');
+        if (sel.value !== 'custom') document.getElementById('wall-text').value = sel.value;
+    };
+
+    // ===== 什器追加 =====
+    window.addDetailedItem = function(type, skipHistory) {
+        if (!skipHistory) pushHistory();
+        const group = new THREE.Group();
+        const col = new THREE.Color(WALL_COLOR());
+        if (type === 'moni65') {
+            const wall = new THREE.Mesh(new THREE.BoxGeometry(1.8,2.4,0.1), new THREE.MeshLambertMaterial({color:col}));
+            wall.position.y=1.2; group.add(wall);
+            const moni = new THREE.Mesh(new THREE.BoxGeometry(1.4,0.8,0.05), new THREE.MeshLambertMaterial({color:0x111111}));
+            moni.position.set(0,1.4,0.08); group.add(moni);
+            const shelf = new THREE.Mesh(new THREE.BoxGeometry(1.4,0.9,0.4), new THREE.MeshLambertMaterial({color:0xffffff}));
+            shelf.position.set(0,0.45,0.25); group.add(shelf);
+        } else if (type === 'demo_new') {
+            // 新デモ台 W700×D600×H930 シルバーメタリックポジウム
+            const mat = new THREE.MeshLambertMaterial({ color: 0xb2bac8 });
+            // 本体
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.93, 0.6), mat);
+            body.position.y = 0.465; group.add(body);
+            // sansanロゴエリア（前面中央やや下）
+            const logoArea = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.1, 0.005),
+                new THREE.MeshLambertMaterial({ color: 0xdce4f0 }));
+            logoArea.position.set(0, 0.38, 0.303); group.add(logoArea);
+            // 赤いアンダーライン
+            const redLine = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.014, 0.005),
+                new THREE.MeshLambertMaterial({ color: 0xe60026 }));
+            redLine.position.set(0, 0.322, 0.303); group.add(redLine);
+            // モニタースタンドベース（天板上）
+            const mBase = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.015, 0.12),
+                new THREE.MeshLambertMaterial({ color: 0x181818 }));
+            mBase.position.set(-0.04, 0.9375, -0.06); group.add(mBase);
+            // スタンドポール
+            const mPole = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.20, 0.022),
+                new THREE.MeshLambertMaterial({ color: 0x181818 }));
+            mPole.position.set(-0.04, 1.045, -0.06); group.add(mPole);
+            // モニターフレーム（黒）
+            const mFrame = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.33, 0.038),
+                new THREE.MeshLambertMaterial({ color: 0x111111 }));
+            mFrame.position.set(-0.04, 1.31, -0.06); group.add(mFrame);
+            // 画面（暗青）
+            const mScreen = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.29, 0.01),
+                new THREE.MeshLambertMaterial({ color: 0x1e2e48 }));
+            mScreen.position.set(-0.04, 1.31, -0.04); group.add(mScreen);
+            // キーボード（天板右寄り）
+            const kb = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.012, 0.13),
+                new THREE.MeshLambertMaterial({ color: 0x1c1c1c }));
+            kb.position.set(0.12, 0.936, 0.06); group.add(kb);
+        } else if (type === 'demo_old') {
+            // 旧デモ台 W500×D500×H930 ホワイト・オープンシェルフ
+            const wMat = new THREE.MeshLambertMaterial({ color: 0xf2f0ec });
+            const t = 0.04; // 板厚
+            // 背面パネル
+            const back = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.93, t), wMat);
+            back.position.set(0, 0.465, -0.23); group.add(back);
+            // 左側面パネル
+            const leftP = new THREE.Mesh(new THREE.BoxGeometry(t, 0.93, 0.5), wMat);
+            leftP.position.set(-0.23, 0.465, 0); group.add(leftP);
+            // 右側面パネル
+            const rightP = new THREE.Mesh(new THREE.BoxGeometry(t, 0.93, 0.5), wMat);
+            rightP.position.set(0.23, 0.465, 0); group.add(rightP);
+            // 天板
+            const topP = new THREE.Mesh(new THREE.BoxGeometry(0.5, t, 0.5), wMat);
+            topP.position.set(0, 0.91, 0); group.add(topP);
+            // 底板
+            const botP = new THREE.Mesh(new THREE.BoxGeometry(0.5, t, 0.5), wMat);
+            botP.position.set(0, 0.02, 0); group.add(botP);
+            // 棚板1（上段 H≈620）
+            const shelf1 = new THREE.Mesh(new THREE.BoxGeometry(0.42, t, 0.46), wMat);
+            shelf1.position.set(0, 0.62, 0.02); group.add(shelf1);
+            // 棚板2（下段 H≈310）
+            const shelf2 = new THREE.Mesh(new THREE.BoxGeometry(0.42, t, 0.46), wMat);
+            shelf2.position.set(0, 0.31, 0.02); group.add(shelf2);
+            // 台座（底面にやや幅広ベース）
+            const ped = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.04, 0.52),
+                new THREE.MeshLambertMaterial({ color: 0xe4e2de }));
+            ped.position.set(0, 0.02, 0); group.add(ped);
+            // モニタースタンドベース
+            const mBase = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.015, 0.10),
+                new THREE.MeshLambertMaterial({ color: 0x181818 }));
+            mBase.position.set(-0.02, 0.9375, -0.05); group.add(mBase);
+            // スタンドポール
+            const mPole = new THREE.Mesh(new THREE.BoxGeometry(0.020, 0.20, 0.020),
+                new THREE.MeshLambertMaterial({ color: 0x181818 }));
+            mPole.position.set(-0.02, 1.045, -0.05); group.add(mPole);
+            // モニターフレーム（黒）
+            const mFrame = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.31, 0.038),
+                new THREE.MeshLambertMaterial({ color: 0x111111 }));
+            mFrame.position.set(-0.02, 1.295, -0.05); group.add(mFrame);
+            // 画面（暗青）
+            const mScreen = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.27, 0.010),
+                new THREE.MeshLambertMaterial({ color: 0x1e2e48 }));
+            mScreen.position.set(-0.02, 1.295, -0.03); group.add(mScreen);
+            // キーボード
+            const kb = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.012, 0.10),
+                new THREE.MeshLambertMaterial({ color: 0x1c1c1c }));
+            kb.position.set(0.09, 0.942, 0.05); group.add(kb);
+        } else if (type === 'demo') {
+            // 旧コード互換（保存データの復元用）
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.7,0.6,0.6), new THREE.MeshLambertMaterial({color:0xffffff}));
+            body.position.y=0.3; group.add(body);
+            const pc = new THREE.Mesh(new THREE.BoxGeometry(0.4,0.25,0.02), new THREE.MeshLambertMaterial({color:0x111111}));
+            pc.position.set(0,0.7,0); group.add(pc);
+        } else if (type === 'pillar_led') {
+            const bottom = new THREE.Mesh(new THREE.BoxGeometry(0.5,2.2,0.5), new THREE.MeshLambertMaterial({color:col}));
+            bottom.position.y=1.1; group.add(bottom);
+            const top = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.5,0.5), new THREE.MeshLambertMaterial({color:0xffffff,emissive:0x222222}));
+            top.position.y=2.45; group.add(top);
+        }
+        group.userData.type='group'; group.userData.itemType=type; group.userData.bu=currentBU;
+        scene.add(group); objects.push(group); select(group); updateAreaInfo();
+    };
+
+    window.addSimpleItem = function(type, skipHistory) {
+        if (!skipHistory) pushHistory();
+        let geo, col;
+        if (type==='lease_counter') { geo=new THREE.BoxGeometry(1.2,0.93,0.6); col=0xe67e22; }
+        else if (type==='pillar') { geo=new THREE.BoxGeometry(0.5,2.2,0.5); col=new THREE.Color(WALL_COLOR()); }
+        else { geo=new THREE.BoxGeometry(0.5,1.2,0.5); col=0xf1c40f; }
+        const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({color:col}));
+        m.position.y=geo.parameters.height/2;
+        m.userData.itemType=type; m.userData.bu=currentBU;
+        scene.add(m); objects.push(m); select(m); updateAreaInfo();
+    };
+
+    window.addCustomWall = function() {
+        pushHistory();
+        const w=parseFloat(document.getElementById('wallW').value);
+        const h=parseFloat(document.getElementById('wallH').value);
+        const colorVal=document.getElementById('wallColor').value;
+        const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,0.1), new THREE.MeshLambertMaterial({color:colorVal}));
+        m.position.y=h/2; m.userData.isWall=true; m.userData.wallColor=colorVal;
+        m.userData.wallW=w; m.userData.wallH=h;
+        scene.add(m); objects.push(m); select(m); updateAreaInfo();
+    };
+
+    window.setWallColor = function(mode) {
+        document.getElementById('wallColor').value = mode==='primary' ? BU_CONFIG[currentBU].primaryColor : '#ffffff';
+    };
+
+    // ===== 選択 =====
+    function select(obj, addMode=false) {
+        if (!addMode) {
+            multiSelected.forEach(o => highlight(o, false));
+            multiSelected.clear();
+            selectedObject = null;
+        }
+        if (obj !== null) {
+            if (addMode && multiSelected.has(obj)) {
+                highlight(obj, false);
+                multiSelected.delete(obj);
+                selectedObject = multiSelected.size > 0 ? [...multiSelected].at(-1) : null;
+            } else {
+                multiSelected.add(obj);
+                highlight(obj, true);
+                selectedObject = obj;
+            }
+        }
+        const ds = document.getElementById('wall-design-section');
+        if (selectedObject && selectedObject.userData.isWall) {
+            ds.classList.add('visible');
+            updateSizeLabel(selectedObject);
+            const actualW = (selectedObject.geometry.parameters.width * selectedObject.scale.x).toFixed(2);
+            document.getElementById('wall-size-hint').textContent = `選択中の壁面：横幅 ${actualW}m`;
+        } else {
+            ds.classList.remove('visible');
+            if (sizeLabel) { scene.remove(sizeLabel); sizeLabel = null; }
+        }
+        updateItemInfo();
+        updateItemList();
+    }
+
+    function deleteSelected() {
+        if (multiSelected.size === 0) return;
+        pushHistory();
+        [...multiSelected].forEach(obj => {
+            scene.remove(obj);
+            const idx = objects.indexOf(obj);
+            if (idx !== -1) objects.splice(idx, 1);
+        });
+        multiSelected.clear();
+        selectedObject = null;
+        document.getElementById('wall-design-section').classList.remove('visible');
+        if (sizeLabel) { scene.remove(sizeLabel); sizeLabel = null; }
+        updateItemInfo();
+        updateItemList();
+        updateAreaInfo();
+    }
+
+    // ===== 情報パネル更新 =====
+    function updateItemInfo() {
+        const sec = document.getElementById('item-info-section');
+        if (!selectedObject || selectedObject.userData.isWall) { sec.style.display='none'; return; }
+        sec.style.display = 'block';
+        const name = getItemName(selectedObject);
+        const cnt = multiSelected.size;
+        document.getElementById('item-info-name').innerHTML = cnt > 1
+            ? `${name} <span class="multi-badge">${cnt}件選択</span>` : name;
+        document.getElementById('item-info-pos').textContent =
+            `座標  X: ${selectedObject.position.x.toFixed(1)}m  Z: ${selectedObject.position.z.toFixed(1)}m`;
+        const box = new THREE.Box3().setFromObject(selectedObject);
+        const sz = new THREE.Vector3(); box.getSize(sz);
+        document.getElementById('item-info-size').textContent =
+            `寸法  W: ${sz.x.toFixed(2)}m  D: ${sz.z.toFixed(2)}m  H: ${sz.y.toFixed(2)}m`;
+        let minDist = Infinity;
+        objects.forEach(o => {
+            if (multiSelected.has(o)) return;
+            const dx = o.position.x - selectedObject.position.x;
+            const dz = o.position.z - selectedObject.position.z;
+            const d = Math.sqrt(dx*dx + dz*dz);
+            if (d < minDist) minDist = d;
+        });
+        const distEl = document.getElementById('item-info-dist');
+        if (minDist < Infinity) { distEl.textContent = `最近接什器まで: ${minDist.toFixed(1)}m`; distEl.style.display=''; }
+        else distEl.style.display='none';
+    }
+
+    function updateAreaInfo() {
+        const gW = parseFloat(document.getElementById('gridW').value)||10;
+        const gD = parseFloat(document.getElementById('gridD').value)||10;
+        const total = gW * gD;
+        let used = 0;
+        objects.forEach(obj => {
+            const box = new THREE.Box3().setFromObject(obj);
+            const sz = new THREE.Vector3(); box.getSize(sz);
+            used += sz.x * sz.z;
+        });
+        const pct = total > 0 ? Math.min(100, Math.round(used/total*100)) : 0;
+        document.getElementById('area-total').textContent = `${total.toFixed(0)}㎡`;
+        document.getElementById('area-used').textContent = `${used.toFixed(1)}㎡`;
+        document.getElementById('area-pct').textContent = `${pct}%`;
+    }
+
+    function updateItemList() {
+        const body = document.getElementById('item-list-body');
+        const empty = document.getElementById('item-list-empty');
+        body.innerHTML = '';
+        const items = objects.slice(0, 10);
+        empty.style.display = items.length === 0 ? '' : 'none';
+        items.forEach((obj, i) => {
+            const row = document.createElement('div');
+            row.className = 'item-list-row' + (multiSelected.has(obj) ? ' selected' : '');
+            row.textContent = `${i+1}. ${getItemName(obj)}`;
+            row.onclick = () => {
+                select(obj);
+                orbit.target.set(obj.position.x, 0, obj.position.z);
+                camera.position.set(obj.position.x + 5, 8, obj.position.z + 6);
+                orbit.update();
+            };
+            body.appendChild(row);
+        });
+        if (objects.length > 10) {
+            const more = document.createElement('div');
+            more.style.cssText = 'font-size:10px;color:#aaa;text-align:center;padding:4px;';
+            more.textContent = `他 ${objects.length-10} 件`;
+            body.appendChild(more);
+        }
+    }
+
+    // ===== ドラッグ =====
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const dragPlane = new THREE.Plane();
+    let intersection = new THREE.Vector3(), offset = new THREE.Vector3();
+    let isDraggingObj=false, isAltRightDrag=false;
+    let prevClientX=0, prevPanX=0, prevPanY=0;
+    let dragStarted = false; // ドラッグ開始時にhistoryを1回だけ積む
+
+    renderer.domElement.addEventListener('pointerdown', (e) => {
+        if (visitorMode) return;
+        if (e.button===2 && isAltDown) {
+            isAltRightDrag=true; prevPanX=e.clientX; prevPanY=e.clientY;
+            orbit.enabled=false; e.preventDefault(); return;
+        }
+        if (e.button !== 0) return;
+        mouse.x=(e.clientX/window.innerWidth)*2-1;
+        mouse.y=-(e.clientY/window.innerHeight)*2+1;
+        prevClientX=e.clientX;
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(objects, true);
+        if (intersects.length > 0) {
+            let target = intersects[0].object;
+            while (target.parent && !target.parent.isScene) target = target.parent;
+            isDraggingObj=true; orbit.enabled=false; dragStarted=false;
+            if (isCtrlDown) { pushHistory(); const clone=target.clone(); scene.add(clone); objects.push(clone); select(clone); updateAreaInfo(); }
+            else select(target, isShiftDown);
+            if (selectedObject) {
+                dragPlane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0,1,0), selectedObject.position);
+                if (raycaster.ray.intersectPlane(dragPlane, intersection)) offset.copy(intersection).sub(selectedObject.position);
+                multiDragStartPositions.clear();
+                multiSelected.forEach(o => multiDragStartPositions.set(o, o.position.clone()));
+            }
+        } else { if (!isShiftDown) select(null); }
+    });
+
+    renderer.domElement.addEventListener('pointermove', (e) => {
+        if (visitorMode) return;
+        if (isAltRightDrag) {
+            const dx=(e.clientX-prevPanX)*0.01, dy=(e.clientY-prevPanY)*0.01;
+            const right=new THREE.Vector3();
+            right.crossVectors(camera.getWorldDirection(new THREE.Vector3()), camera.up).normalize();
+            const panVec=right.multiplyScalar(-dx).add(camera.up.clone().normalize().multiplyScalar(dy));
+            camera.position.add(panVec); orbit.target.add(panVec); orbit.update();
+            prevPanX=e.clientX; prevPanY=e.clientY; return;
+        }
+        if (!isDraggingObj || !selectedObject) return;
+
+        mouse.x=(e.clientX/window.innerWidth)*2-1;
+        mouse.y=-(e.clientY/window.innerHeight)*2+1;
+        const deltaX=e.clientX-prevClientX;
+
+        if (isShiftDown && multiSelected.size <= 1) {
+            if (!dragStarted) { pushHistory(); dragStarted=true; }
+            selectedObject.rotation.y += deltaX*0.02;
+        } else if (isAltDown && selectedObject.userData.isWall && multiSelected.size <= 1) {
+            if (!dragStarted) { pushHistory(); dragStarted=true; }
+            selectedObject.scale.x = Math.max(0.1, selectedObject.scale.x + deltaX*0.01);
+            updateSizeLabel(selectedObject);
+            const actualW = (selectedObject.geometry.parameters.width*selectedObject.scale.x).toFixed(2);
+            document.getElementById('wall-size-hint').textContent = `選択中の壁面：横幅 ${actualW}m`;
+        } else {
+            if (!dragStarted) { pushHistory(); dragStarted=true; }
+            raycaster.setFromCamera(mouse, camera);
+            if (raycaster.ray.intersectPlane(dragPlane, intersection)) {
+                const newPos = intersection.clone().sub(offset);
+                newPos.x = snapVal(newPos.x);
+                newPos.z = snapVal(newPos.z);
+                if (multiSelected.size > 1) {
+                    const startPos = multiDragStartPositions.get(selectedObject);
+                    if (startPos) {
+                        const dx = newPos.x - startPos.x, dz = newPos.z - startPos.z;
+                        multiSelected.forEach(obj => {
+                            const sp = multiDragStartPositions.get(obj);
+                            if (sp) { obj.position.x = sp.x + dx; obj.position.z = sp.z + dz; }
+                        });
+                    }
+                } else {
+                    selectedObject.position.copy(newPos);
+                    if (selectedObject.userData.type==='group') selectedObject.position.y=0;
+                    else selectedObject.position.y=selectedObject.geometry.parameters.height/2;
+                    if (sizeLabel) sizeLabel.position.copy(selectedObject.position).setY(selectedObject.geometry.parameters.height+0.5);
+                }
+                updateItemInfo();
+            }
+        }
+        prevClientX=e.clientX;
+    });
+
+    renderer.domElement.addEventListener('pointerup', () => {
+        isDraggingObj=false; isAltRightDrag=false;
+        if (!visitorMode) orbit.enabled=true;
+    });
+    renderer.domElement.addEventListener('contextmenu', e=>e.preventDefault());
+
+    // ===== 来場者モード（FPS / PointerLockControls） =====
+    let visitorMode=false;
+    const visitorKeys={};
+    const VISITOR_HEIGHT=1.5, VISITOR_SPEED=0.06;
+    let savedCameraState=null;
+
+    // ESC や外部ロック解除 → visitorMode が続いていれば終了
+    fpsCont.addEventListener('unlock', () => {
+        if (visitorMode) toggleVisitorMode();
+    });
+
+    window.toggleVisitorMode = function() {
+        visitorMode = !visitorMode;
+        const btn=document.getElementById('visitor-btn');
+        const banner=document.getElementById('visitor-banner');
+        const ui=document.getElementById('ui');
+        const bar=document.getElementById('bottom-bar');
+        if (visitorMode) {
+            savedCameraState={position:camera.position.clone(), target:orbit.target.clone()};
+            const d=parseFloat(document.getElementById('gridD').value)||10;
+            camera.position.set(0, VISITOR_HEIGHT, d/2 + AISLE_WIDTH/2);
+            camera.fov = 75; camera.updateProjectionMatrix();
+            camera.rotation.order = 'YXZ';
+            camera.rotation.set(0, 0, 0);  // 北向き（ブース正面、デフォルト -Z 方向）
+            orbit.enabled=false; select(null);
+            btn.textContent='来場者モード終了'; btn.classList.add('active');
+            banner.classList.add('active');
+            document.getElementById('debug-overlay').style.display='block'; ui.classList.add('visitor-mode'); bar.classList.add('visitor-mode');
+            renderer.domElement.style.cursor = 'crosshair';
+        } else {
+            if (fpsCont.isLocked) fpsCont.unlock();
+            camera.fov = 60; camera.updateProjectionMatrix();
+            renderer.domElement.style.cursor = '';
+            if (savedCameraState) { camera.position.copy(savedCameraState.position); orbit.target.copy(savedCameraState.target); }
+            orbit.enabled=true; orbit.update();
+            btn.textContent='来場者モードで見る'; btn.classList.remove('active');
+            banner.classList.remove('active');
+            document.getElementById('debug-overlay').style.display='none'; ui.classList.remove('visitor-mode'); bar.classList.remove('visitor-mode');
+        }
+    };
+
+    // キャンバスクリックで Pointer Lock を取得
+    renderer.domElement.addEventListener('click', () => {
+        if (visitorMode && !fpsCont.isLocked) fpsCont.lock();
+    });
+
+    let walkPhase = 0;
+
+    function updateVisitorCamera() {
+        if (!visitorMode) return;
+
+        // PointerLockControls が rotation を管理するので移動のみ処理
+        const fw = (visitorKeys['w']||visitorKeys['W']||visitorKeys['ArrowUp'])    ?  1 :
+                   (visitorKeys['s']||visitorKeys['S']||visitorKeys['ArrowDown'])  ? -1 : 0;
+        const rt = (visitorKeys['d']||visitorKeys['D']||visitorKeys['ArrowRight']) ?  1 :
+                   (visitorKeys['a']||visitorKeys['A']||visitorKeys['ArrowLeft'])  ? -1 : 0;
+        const moving = fw !== 0 || rt !== 0;
+
+        if (fpsCont.isLocked && moving) {
+            // yaw のみ使ってグリッド軸（XZ）に沿った移動を計算
+            const yaw = camera.rotation.y;
+            camera.position.x += (-Math.sin(yaw) * fw + Math.cos(yaw) * rt) * VISITOR_SPEED;
+            camera.position.z += (-Math.cos(yaw) * fw - Math.sin(yaw) * rt) * VISITOR_SPEED;
+        }
+
+        // 歩行モーション（上下バウンス）
+        if (moving) {
+            walkPhase += 0.18;
+            camera.position.y = VISITOR_HEIGHT + Math.sin(walkPhase) * 0.04;
+        } else {
+            walkPhase = 0;
+            camera.position.y = VISITOR_HEIGHT;
+        }
+
+        // デバッグ表示
+        document.getElementById('dbg-mode').textContent = 'mode: VISITOR';
+        document.getElementById('dbg-lock').textContent = 'pointerLock: ' + (fpsCont.isLocked ? 'YES' : 'NO');
+        const pressedKeys = Object.keys(visitorKeys).filter(k => visitorKeys[k]).join(', ') || 'none';
+        document.getElementById('dbg-keys').textContent = 'keys: ' + pressedKeys;
+        document.getElementById('dbg-yaw').textContent = 'yaw: ' + camera.rotation.y.toFixed(2);
+        document.getElementById('dbg-pitch').textContent = 'pitch: ' + camera.rotation.x.toFixed(2);
+        document.getElementById('dbg-pos').textContent = 'pos: ' + camera.position.x.toFixed(1) + ', ' + camera.position.z.toFixed(1);
+        document.getElementById('dbg-mouse').textContent = fpsCont.isLocked ? 'locked' : 'click to lock';
+    }
+
+    // ===== 視点切替 =====
+    window.switchView = function(mode) {
+        if (visitorMode) return;
+        const w=parseFloat(document.getElementById('gridW').value)||10;
+        const d=parseFloat(document.getElementById('gridD').value)||10;
+        const dist=Math.max(w,d)+10;
+        switch(mode) {
+            case 'top':   camera.position.set(0,dist*1.5,0.001); orbit.target.set(0,0,0); break;
+            case 'south': camera.position.set(0,1.5,dist);  orbit.target.set(0,1.5,0); break;
+            case 'north': camera.position.set(0,1.5,-dist); orbit.target.set(0,1.5,0); break;
+            case 'east':  camera.position.set(dist,1.5,0);  orbit.target.set(0,1.5,0); break;
+            case 'west':  camera.position.set(-dist,1.5,0); orbit.target.set(0,1.5,0); break;
+            case 'orbit': camera.position.set(10,10,10); orbit.target.set(0,0,0); break;
+        }
+        orbit.update();
+    };
+
+    // ===== 事業部切替 =====
+    window.switchBU = function(bu) {
+        currentBU=bu;
+        const cfg=BU_CONFIG[bu];
+        ['SS','BO','CO'].forEach(b => {
+            const t=document.getElementById('tab-'+b);
+            t.className='tab-btn';
+            if(b===bu) t.classList.add(cfg.accentClass);
+        });
+        document.documentElement.style.setProperty('--accent-color', cfg.primaryColor);
+        document.documentElement.style.setProperty('--accent-bg', cfg.accentBg);
+        document.getElementById('ui').style.setProperty('--accent-color', cfg.primaryColor);
+        document.getElementById('wallColor').value=cfg.primaryColor;
+        renderItemButtons(bu);
+    };
+
+    function renderItemButtons(bu) {
+        const container=document.getElementById('item-buttons');
+        container.innerHTML='';
+        BU_CONFIG[bu].items.forEach(item => {
+            const btn=document.createElement('button');
+            btn.className='item-btn';
+            btn.innerHTML=`${item.label} <span style="font-size:10px;color:#777;font-weight:400;margin-left:3px;">${item.size}</span>`;
+            btn.onclick=()=>{ if(item.type==='detailed') window.addDetailedItem(item.id); else window.addSimpleItem(item.id); };
+            container.appendChild(btn);
+        });
+    }
+
+    // ===== 保存・読み込み =====
+    function serializeScene() {
+        return objects.map(obj => {
+            const base={position:obj.position.toArray(),rotation:[obj.rotation.x,obj.rotation.y,obj.rotation.z],scale:obj.scale.toArray(),userData:obj.userData};
+            if(obj.userData.isWall) {
+                base.type='wall'; base.wallW=obj.geometry.parameters.width; base.wallH=obj.geometry.parameters.height;
+                base.color='#'+obj.material.color.getHexString();
+                const d=obj.getObjectByName('wall_design');
+                if(d){base.designType=d.userData.designType;base.designText=obj.userData.designText||'';}
+            } else if(obj.userData.type==='group') {
+                base.type='group'; base.itemType=obj.userData.itemType; base.bu=obj.userData.bu;
+            } else {
+                base.type='simple'; base.itemType=obj.userData.itemType;
+                base.color='#'+obj.material.color.getHexString();
+                base.geoW=obj.geometry.parameters.width; base.geoH=obj.geometry.parameters.height; base.geoD=obj.geometry.parameters.depth;
+            }
+            return base;
+        });
+    }
+
+    async function restoreScene(data) {
+        objects.forEach(o=>scene.remove(o)); objects.length=0;
+        for(const d of data) {
+            if(d.type==='wall') {
+                const m=new THREE.Mesh(new THREE.BoxGeometry(d.wallW,d.wallH,0.1),new THREE.MeshLambertMaterial({color:d.color||'#0047AB'}));
+                m.position.fromArray(d.position); m.rotation.set(...d.rotation); m.scale.fromArray(d.scale);
+                m.userData={...d.userData,isWall:true}; scene.add(m); objects.push(m);
+                if(d.designType==='text'&&d.designText){applyTextureToWall(m,createTextTexture(d.designText),'text');m.userData.designText=d.designText;}
+                else if(d.designType==='logo'){applyTextureToWall(m,await createLogoTexture(),'logo');}
+            } else if(d.type==='group') {
+                const savedBU=currentBU; if(d.bu)currentBU=d.bu;
+                window.addDetailedItem(d.itemType, true); currentBU=savedBU;
+                const obj=objects[objects.length-1];
+                obj.position.fromArray(d.position); obj.rotation.set(...d.rotation); obj.scale.fromArray(d.scale); select(null);
+            } else if(d.type==='simple') {
+                const m=new THREE.Mesh(new THREE.BoxGeometry(d.geoW,d.geoH,d.geoD),new THREE.MeshLambertMaterial({color:d.color||'#ccc'}));
+                m.position.fromArray(d.position); m.rotation.set(...d.rotation); m.scale.fromArray(d.scale);
+                m.userData={...d.userData}; scene.add(m); objects.push(m);
+            }
+        }
+        select(null); updateHistoryUI(); updateAreaInfo();
+    }
+
+    window.saveToLocal=function(){localStorage.setItem('booth_layout',JSON.stringify(serializeScene()));alert('ブラウザに保存しました。');};
+    window.loadFromLocal=async function(){const r=localStorage.getItem('booth_layout');if(!r){alert('保存データが見つかりません。');return;}await restoreScene(JSON.parse(r));alert('読み込みました。');};
+    window.exportJSON=function(){const b=new Blob([JSON.stringify(serializeScene(),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='booth_layout.json';a.click();};
+    window.importJSON=async function(e){const f=e.target.files[0];if(!f)return;await restoreScene(JSON.parse(await f.text()));e.target.value='';alert('読み込みました。');};
+    window.updateAreaInfo = updateAreaInfo;
+    window.updateItemList = updateItemList;
+
+    // ===== メインループ =====
+    switchBU('SS');
+    updateHistoryUI();
+    updateAreaInfo();
+    updateItemList();
+
+    function animate() {
+        requestAnimationFrame(animate);
+        updateVisitorCamera();
+        if (sizeLabel) sizeLabel.quaternion.copy(camera.quaternion);
+        if (!visitorMode) orbit.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+        camera.aspect=window.innerWidth/window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth,window.innerHeight);
+    });
+</script>
+</body>
+</html>
