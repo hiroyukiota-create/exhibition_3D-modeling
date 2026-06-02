@@ -8,7 +8,7 @@
         body { margin: 0; overflow: hidden; font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif; background: #f0f0f0; }
 
         #tab-bar {
-            position: absolute; top: 0; left: 0; right: 0; height: 48px;
+            position: absolute; top: 36px; left: 0; right: 0; height: 48px;
             background: #f5f6fa; backdrop-filter: blur(8px);
             display: flex; align-items: center; padding: 0 16px; gap: 8px;
             z-index: 200; border-bottom: 1px solid #ddd;
@@ -23,7 +23,7 @@
 
         /* 来場者モードバナー */
         #visitor-banner {
-            display: none; position: absolute; top: 48px; left: 0; right: 0;
+            display: none; position: absolute; top: 84px; left: 0; right: 0;
             background: rgba(255,255,255,0.92); color: #333333; text-align: center;
             padding: 6px 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
             z-index: 199; border-bottom: 1px solid #ddd;
@@ -32,11 +32,11 @@
         #visitor-banner kbd { background: #e0e0e0; border: 1px solid #bbb; padding: 1px 5px; border-radius: 3px; font-family: monospace; margin: 0 2px; color: #333; }
 
         #ui {
-            position: absolute; top: 58px; left: 10px;
+            position: absolute; top: 94px; left: 10px;
             background: #f5f6fa;
             padding: 14px 16px; border-radius: 12px;
             box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-            width: 270px; max-height: calc(95vh - 130px); overflow-y: auto;
+            width: 270px; max-height: calc(95vh - 166px); overflow-y: auto;
             z-index: 100; border: 1px solid #e0e0e0;
             transition: opacity 0.2s;
         }
@@ -92,6 +92,76 @@
         #bottom-bar::-webkit-scrollbar { height: 0; }
         #ui::-webkit-scrollbar { width: 4px; }
         #ui::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+
+        /* ===== モード切替バー ===== */
+        #mode-bar {
+            position: absolute; top: 0; left: 0; right: 0; height: 36px;
+            background: #1a1a2e; display: flex; align-items: center;
+            padding: 0 16px; gap: 8px; z-index: 400;
+        }
+        .mode-tab-btn {
+            padding: 4px 18px; border: 1.5px solid #444; border-radius: 14px;
+            cursor: pointer; font-size: 12px; font-weight: 700;
+            background: transparent; color: #888; transition: all 0.15s; letter-spacing: 0.05em;
+            font-family: inherit;
+        }
+        .mode-tab-btn:hover { color: #fff; border-color: #888; }
+        .mode-tab-btn.active { background: #fff; color: #222; border-color: #fff; }
+
+        /* ===== 平面図コンテナ ===== */
+        #fp-container {
+            display: none; position: absolute;
+            top: 36px; left: 0; right: 0; bottom: 0;
+            flex-direction: row; background: #e0e0e0;
+            font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+        }
+        #fp-panel {
+            width: 210px; min-width: 210px; background: #f5f6fa;
+            border-right: 1px solid #ddd; overflow-y: auto;
+            padding: 10px; z-index: 100;
+        }
+        #fp-panel h3 {
+            margin: 10px 0 5px 0; font-size: 10px; letter-spacing: 0.1em;
+            text-transform: uppercase; color: #888;
+            padding-left: 6px; border-left: 3px solid #0047AB;
+        }
+        #fp-panel h3:first-child { margin-top: 0; }
+        .fp-section { margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+        .fp-btn {
+            display: block; width: 100%; margin-bottom: 3px; padding: 6px 8px;
+            cursor: pointer; background: #e8f0ff; color: #333;
+            border: 1px solid #ccc; border-radius: 5px; font-size: 11px;
+            font-weight: 600; text-align: left; transition: all 0.12s; font-family: inherit;
+        }
+        .fp-btn:hover { background: #0047AB; color: #fff; border-color: #0047AB; }
+        .fp-btn.active { background: #0047AB; color: #fff; border-color: #0047AB; }
+        .fp-btn.red:hover, .fp-btn.red.active { background: #cc0000; color: #fff; border-color: #cc0000; }
+        .fp-btn.blue:hover, .fp-btn.blue.active { background: #0055cc; color: #fff; border-color: #0055cc; }
+        .fp-btn.gray { background: #888; color: #fff; border-color: #777; }
+        .fp-btn.gray:hover { opacity: 0.8; }
+        .fp-icon-btn {
+            display: flex; align-items: center; gap: 5px;
+            width: 100%; margin-bottom: 2px; padding: 3px 5px;
+            cursor: pointer; background: #f0f0f0; color: #333;
+            border: 1px solid #ccc; border-radius: 3px; font-size: 10px;
+            transition: all 0.12s; text-align: left; font-family: inherit;
+        }
+        .fp-icon-btn:hover { background: #dce8ff; border-color: #0047AB; }
+        .fp-icon-btn.active { background: #0047AB; color: #fff; border-color: #0047AB; }
+        .fp-icon-preview { background: #b8b8b8; border: 1px solid #999; flex-shrink: 0; }
+        #fp-canvas-wrapper { flex: 1; position: relative; overflow: hidden; }
+        #fp-canvas { display: block; cursor: default; }
+        #fp-to-3d-btn {
+            position: absolute; top: 10px; right: 10px;
+            padding: 8px 18px; background: #28a745; color: #fff;
+            border: none; border-radius: 6px; cursor: pointer;
+            font-size: 13px; font-weight: 700; z-index: 10;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2); font-family: inherit;
+        }
+        #fp-to-3d-btn:hover { background: #1e7e34; }
+        .fp-stall-row { display: flex; gap: 4px; align-items: center; margin-bottom: 5px; }
+        .fp-stall-row label { font-size: 10px; color: #555; }
+        .fp-stall-row input { width: 42px; padding: 3px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px; }
     </style>
 </head>
 <body>
@@ -105,6 +175,11 @@
     <div id="dbg-pitch">pitch: -</div>
     <div id="dbg-pos">pos: -</div>
     <div id="dbg-mouse">mouse: -</div>
+</div>
+
+<div id="mode-bar">
+    <button class="mode-tab-btn active" id="mode-btn-3d" onclick="switchMode('3d')">3Dモデル</button>
+    <button class="mode-tab-btn" id="mode-btn-fp" onclick="switchMode('fp')">平面図</button>
 </div>
 
 <div id="tab-bar">
@@ -311,6 +386,50 @@
     <div id="item-buttons" style="display:flex;gap:6px;align-items:center;"></div>
 </div>
 
+<div id="fp-container">
+    <div id="fp-panel">
+        <div class="fp-section">
+            <h3>小間設定</h3>
+            <div class="fp-stall-row">
+                <label>横W:</label><input type="number" id="fp-stalls-w" value="2" min="1" max="10" onchange="fpUpdateStalls()">
+                <label>縦D:</label><input type="number" id="fp-stalls-d" value="2" min="1" max="10" onchange="fpUpdateStalls()">
+                <span style="font-size:9px;color:#aaa;">小間</span>
+            </div>
+            <div style="font-size:9px;color:#aaa;margin-top:2px;">1小間 = 3m × 3m</div>
+        </div>
+        <div class="fp-section">
+            <h3>導線</h3>
+            <button class="fp-btn red" data-mode="arrow_main" onclick="fpSetMode('arrow_main')">→ メイン導線（太・赤）</button>
+            <button class="fp-btn blue" data-mode="arrow_sub" onclick="fpSetMode('arrow_sub')">→ サブ導線（細・青）</button>
+            <div style="font-size:9px;color:#aaa;margin-top:2px;">クリック→ドラッグで矢印を描く</div>
+        </div>
+        <div class="fp-section">
+            <h3>隣接エリア</h3>
+            <button class="fp-btn" data-mode="area" onclick="fpSetMode('area')">■ 隣接ブースを描く</button>
+            <div style="font-size:9px;color:#aaa;margin-top:2px;">クリック→ドラッグで矩形を描く</div>
+        </div>
+        <div class="fp-section">
+            <h3>什器アイコン</h3>
+            <div style="font-size:9px;color:#aaa;margin-bottom:4px;">クリックで選択 → キャンバスをクリックして配置</div>
+            <div id="fp-furniture-list"></div>
+        </div>
+        <div class="fp-section" style="border:none;margin-bottom:0;">
+            <h3>操作ガイド</h3>
+            <div style="font-size:9px;color:#666;line-height:1.8;">
+                ・配置後にドラッグで移動<br>
+                ・<kbd>R</kbd>：選択什器を90°回転<br>
+                ・<kbd>Delete</kbd>：選択什器を削除<br>
+                ・<kbd>ESC</kbd>：モードをキャンセル<br>
+                ・グリッドスナップ（1m単位）
+            </div>
+        </div>
+    </div>
+    <div id="fp-canvas-wrapper">
+        <canvas id="fp-canvas"></canvas>
+        <button id="fp-to-3d-btn" onclick="fpConvertTo3D()">3Dモデルに変換 →</button>
+    </div>
+</div>
+
 <script type="importmap">
     {
       "imports": {
@@ -339,6 +458,9 @@
             { id: 'lease_counter', label: 'リースカウンター', size: 'W1200', type: 'simple' },
             { id: 'pamph', label: 'パンフ台', size: 'W500', type: 'simple' },
             { id: 'wall_monitor', label: '壁掛けモニター', size: '65型', type: 'detailed' },
+            { id: 'table', label: 'テーブル W1800', type: 'detailed' },
+            { id: 'chair', label: 'イス', type: 'detailed' },
+            { id: 'rack', label: 'スチールラック W900', type: 'detailed' },
         ]},
         BO: { primaryColor: '#00AEEF', accentBg: '#e0f5fd', accentClass: 'active-bo', items: [
             { id: 'moni65', label: 'モニター台 65型', size: 'W1800', type: 'detailed' },
@@ -348,6 +470,9 @@
             { id: 'lease_counter', label: 'リースカウンター', size: 'W1200', type: 'simple' },
             { id: 'pamph', label: 'パンフ台', size: 'W500', type: 'simple' },
             { id: 'wall_monitor', label: '壁掛けモニター', size: '65型', type: 'detailed' },
+            { id: 'table', label: 'テーブル W1800', type: 'detailed' },
+            { id: 'chair', label: 'イス', type: 'detailed' },
+            { id: 'rack', label: 'スチールラック W900', type: 'detailed' },
         ]},
         CO: { primaryColor: '#E60026', accentBg: '#fce8ea', accentClass: 'active-co', items: [
             { id: 'moni65', label: 'モニター台 65型', size: 'W1800', type: 'detailed' },
@@ -357,6 +482,9 @@
             { id: 'lease_counter', label: 'リースカウンター', size: 'W1200', type: 'simple' },
             { id: 'pamph', label: 'パンフ台', size: 'W500', type: 'simple' },
             { id: 'wall_monitor', label: '壁掛けモニター', size: '65型', type: 'detailed' },
+            { id: 'table', label: 'テーブル W1800', type: 'detailed' },
+            { id: 'chair', label: 'イス', type: 'detailed' },
+            { id: 'rack', label: 'スチールラック W900', type: 'detailed' },
         ]}
     };
     let currentBU = 'SS';
@@ -369,6 +497,7 @@
     const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
+    renderer.domElement.id = 'three-canvas';
     document.body.appendChild(renderer.domElement);
     scene.add(new THREE.AmbientLight(0xffffff, 1.0));
     const sun = new THREE.DirectionalLight(0xffffff, 0.5);
@@ -565,6 +694,8 @@
     let selectedObject = null;
     let isShiftDown=false, isCtrlDown=false, isAltDown=false;
 
+    let currentMode = '3d';
+
     // 複数選択
     const multiSelected = new Set();
     let multiDragStartPositions = new Map();
@@ -576,6 +707,7 @@
         pillar: '柱', pillar_led: '柱 LED付',
         lease_counter: 'リースカウンター', pamph: 'パンフ台',
         wall_monitor: '壁掛けモニター',
+        table: 'テーブル W1800', chair: 'イス', rack: 'スチールラック W900',
     };
     const MONITOR_SIZES = {
         32:  { w: 0.71, h: 0.40 },
@@ -598,6 +730,7 @@
         if (e.key === 'Shift') isShiftDown = true;
         if (e.ctrlKey || e.metaKey) isCtrlDown = true;
         if (e.altKey) isAltDown = true;
+        if (currentMode !== '3d') return;
         if (visitorMode) {
             visitorKeys[e.key] = true;
             // スクリーンショット（Pキー）
@@ -862,6 +995,48 @@
             group.userData.monitorW = MONITOR_SIZES[65].w;
             group.userData.monitorH = MONITOR_SIZES[65].h;
             group.userData.monitorY = 1.5;
+        } else if (type === 'table') {
+            // 天板 W1.8 × D0.45 × H0.05
+            const topMat = new THREE.MeshLambertMaterial({ color: 0xf5f5f5 });
+            const legMat = new THREE.MeshLambertMaterial({ color: 0xaaaaaa });
+            const top = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.05, 0.45), topMat);
+            top.position.y = 0.72; group.add(top);
+            // 4本脚：四隅から内側0.1m、床から天板下面まで H0.67
+            const legOffsets = [[-0.8, 0.17], [0.8, 0.17], [-0.8, -0.17], [0.8, -0.17]];
+            legOffsets.forEach(([lx, lz]) => {
+                const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.67, 0.05), legMat);
+                leg.position.set(lx, 0.335, lz); group.add(leg);
+            });
+        } else if (type === 'chair') {
+            const seatMat = new THREE.MeshLambertMaterial({ color: 0xf5f5f5 });
+            const legMat2 = new THREE.MeshLambertMaterial({ color: 0x888888 });
+            // 座面 W0.45 × D0.45 × H0.05、高さ0.45
+            const seat = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.05, 0.45), seatMat);
+            seat.position.y = 0.45; group.add(seat);
+            // 4本脚 H0.45
+            const cLegOffsets = [[-0.19, 0.19], [0.19, 0.19], [-0.19, -0.19], [0.19, -0.19]];
+            cLegOffsets.forEach(([lx, lz]) => {
+                const leg = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.45, 0.04), legMat2);
+                leg.position.set(lx, 0.225, lz); group.add(leg);
+            });
+            // 背もたれ W0.45 × D0.05 × H0.35、座面後方に垂直
+            const back = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.35, 0.05), seatMat);
+            back.position.set(0, 0.645, -0.2); group.add(back);
+        } else if (type === 'rack') {
+            const frameMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
+            const shelfMat = new THREE.MeshLambertMaterial({ color: 0xaaaaaa });
+            const fw = 0.9, fd = 0.45, fh = 1.8, ft = 0.03;
+            // 縦フレーム4本
+            const vPosts = [[-fw/2+ft/2, fd/2-ft/2], [fw/2-ft/2, fd/2-ft/2], [-fw/2+ft/2, -fd/2+ft/2], [fw/2-ft/2, -fd/2+ft/2]];
+            vPosts.forEach(([px, pz]) => {
+                const post = new THREE.Mesh(new THREE.BoxGeometry(ft, fh, ft), frameMat);
+                post.position.set(px, fh/2, pz); group.add(post);
+            });
+            // 棚板3段（H0.6 / 1.2 / 1.8）
+            [0.6, 1.2, 1.8].forEach(sy => {
+                const shelf = new THREE.Mesh(new THREE.BoxGeometry(fw, ft, fd), shelfMat);
+                shelf.position.set(0, sy, 0); group.add(shelf);
+            });
         }
         group.userData.type='group'; group.userData.itemType=type; group.userData.bu=currentBU;
         if (type === 'wall_monitor') group.position.y = group.userData.monitorY || 1.5;
@@ -1317,12 +1492,349 @@
         select(null); updateHistoryUI(); updateAreaInfo();
     }
 
-    window.saveToLocal=function(){localStorage.setItem('booth_layout',JSON.stringify(serializeScene()));alert('ブラウザに保存しました。');};
-    window.loadFromLocal=async function(){const r=localStorage.getItem('booth_layout');if(!r){alert('保存データが見つかりません。');return;}await restoreScene(JSON.parse(r));alert('読み込みました。');};
-    window.exportJSON=function(){const b=new Blob([JSON.stringify(serializeScene(),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='booth_layout.json';a.click();};
-    window.importJSON=async function(e){const f=e.target.files[0];if(!f)return;await restoreScene(JSON.parse(await f.text()));e.target.value='';alert('読み込みました。');};
+    function getFullData() { return { v:2, items3d: serializeScene(), floorplan: window.serializeFp() }; }
+    async function loadFullData(raw) {
+        const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (Array.isArray(data)) { await restoreScene(data); }
+        else { await restoreScene(data.items3d || []); if (window.restoreFp) window.restoreFp(data.floorplan); }
+    }
+    window.saveToLocal=function(){localStorage.setItem('booth_layout',JSON.stringify(getFullData()));alert('ブラウザに保存しました。');};
+    window.loadFromLocal=async function(){const r=localStorage.getItem('booth_layout');if(!r){alert('保存データが見つかりません。');return;}await loadFullData(r);alert('読み込みました。');};
+    window.exportJSON=function(){const b=new Blob([JSON.stringify(getFullData(),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='booth_layout.json';a.click();};
+    window.importJSON=async function(e){const f=e.target.files[0];if(!f)return;await loadFullData(await f.text());e.target.value='';alert('読み込みました。');};
     window.updateAreaInfo = updateAreaInfo;
     window.updateItemList = updateItemList;
+
+    // ===== 平面図 =====
+    const FP_FURNITURE = [
+        { id: 'wall',          label: '壁面',          w: 3.0,  d: 0.1  },
+        { id: 'lease_counter', label: 'カウンター',     w: 1.2,  d: 0.6  },
+        { id: 'pillar',        label: '柱',            w: 0.5,  d: 0.5  },
+        { id: 'moni65',        label: 'モニター台65型', w: 1.8,  d: 0.45 },
+        { id: 'demo_new',      label: '新デモ台',       w: 0.7,  d: 0.6  },
+        { id: 'demo_old',      label: '旧デモ台',       w: 0.5,  d: 0.5  },
+        { id: 'table',         label: 'テーブル',       w: 1.8,  d: 0.45 },
+        { id: 'chair',         label: 'イス',           w: 0.45, d: 0.45 },
+        { id: 'rack',          label: 'スチールラック', w: 0.9,  d: 0.45 },
+        { id: 'wall_monitor',  label: '壁掛けモニター', w: 1.44, d: 0.05 },
+    ];
+    const FP_AISLE = 2.5, FP_STALL = 3;
+
+    let fpItems = [], fpArrows = [], fpAreas = [];
+    let fpStallsW = 2, fpStallsD = 2;
+    let fpMode2 = 'select', fpPlaceId = null, fpSelectedIdx = -1;
+    let fpDragging = false, fpDragOffX = 0, fpDragOffY = 0;
+    let fpArrowStart = null, fpAreaStart = null, fpAreaCurr = null;
+    let fpMouse = { x: 0, y: 0 };
+
+    const fpCv = document.getElementById('fp-canvas');
+    const fpCx = fpCv.getContext('2d');
+
+    function fpBoothW() { return fpStallsW * FP_STALL; }
+    function fpBoothD() { return fpStallsD * FP_STALL; }
+
+    function fpScale() {
+        const PAD = 50, bw = fpBoothW() + 2*FP_AISLE, bd = fpBoothD() + 2*FP_AISLE;
+        return Math.min((fpCv.width - 2*PAD) / bw, (fpCv.height - 2*PAD) / bd);
+    }
+
+    function fpW2C(wx, wy) {
+        const s = fpScale(), tw = fpBoothW()+2*FP_AISLE, td = fpBoothD()+2*FP_AISLE;
+        return { x: (fpCv.width - tw*s)/2 + (wx + tw/2)*s, y: (fpCv.height - td*s)/2 + (wy + td/2)*s };
+    }
+
+    function fpC2W(cx, cy) {
+        const s = fpScale(), tw = fpBoothW()+2*FP_AISLE, td = fpBoothD()+2*FP_AISLE;
+        return { x: (cx - (fpCv.width - tw*s)/2)/s - tw/2, y: (cy - (fpCv.height - td*s)/2)/s - td/2 };
+    }
+
+    function fpSnap(v) { return Math.round(v); }
+
+    function fpResizeCv() {
+        const wr = document.getElementById('fp-canvas-wrapper');
+        fpCv.width = wr.clientWidth; fpCv.height = wr.clientHeight;
+    }
+
+    function fpDrawArrow(x1, y1, x2, y2, isMain) {
+        if (Math.hypot(x2-x1, y2-y1) < 3) return;
+        fpCx.save();
+        fpCx.strokeStyle = isMain ? '#cc0000' : '#0055cc';
+        fpCx.fillStyle   = isMain ? '#cc0000' : '#0055cc';
+        fpCx.lineWidth = isMain ? 4 : 2; fpCx.lineCap = 'round';
+        fpCx.beginPath(); fpCx.moveTo(x1, y1); fpCx.lineTo(x2, y2); fpCx.stroke();
+        const ang = Math.atan2(y2-y1, x2-x1), hl = isMain ? 18 : 11;
+        fpCx.beginPath(); fpCx.moveTo(x2, y2);
+        fpCx.lineTo(x2 - hl*Math.cos(ang-Math.PI/6), y2 - hl*Math.sin(ang-Math.PI/6));
+        fpCx.lineTo(x2 - hl*Math.cos(ang+Math.PI/6), y2 - hl*Math.sin(ang+Math.PI/6));
+        fpCx.closePath(); fpCx.fill(); fpCx.restore();
+    }
+
+    function fpDraw() {
+        if (!fpCv.width || !fpCv.height) return;
+        const s = fpScale(), bw = fpBoothW(), bd = fpBoothD();
+        const tw = bw+2*FP_AISLE, td = bd+2*FP_AISLE;
+        fpCx.clearRect(0, 0, fpCv.width, fpCv.height);
+
+        // 通路（グレー）
+        const tl = fpW2C(-tw/2,-td/2), br = fpW2C(tw/2,td/2);
+        fpCx.fillStyle = '#c0c0c0';
+        fpCx.fillRect(tl.x, tl.y, br.x-tl.x, br.y-tl.y);
+
+        // ブース（白）
+        const btl = fpW2C(-bw/2,-bd/2), bbr = fpW2C(bw/2,bd/2);
+        fpCx.fillStyle = '#fff';
+        fpCx.fillRect(btl.x, btl.y, bbr.x-btl.x, bbr.y-btl.y);
+
+        // グリッド線（1m）
+        fpCx.strokeStyle = '#ddd'; fpCx.lineWidth = 0.5;
+        for (let gx = -bw/2; gx <= bw/2; gx++) {
+            const p0 = fpW2C(gx,-bd/2), p1 = fpW2C(gx,bd/2);
+            fpCx.beginPath(); fpCx.moveTo(p0.x,p0.y); fpCx.lineTo(p1.x,p1.y); fpCx.stroke();
+        }
+        for (let gy = -bd/2; gy <= bd/2; gy++) {
+            const p0 = fpW2C(-bw/2,gy), p1 = fpW2C(bw/2,gy);
+            fpCx.beginPath(); fpCx.moveTo(p0.x,p0.y); fpCx.lineTo(p1.x,p1.y); fpCx.stroke();
+        }
+
+        // ブース外枠
+        fpCx.strokeStyle = '#555'; fpCx.lineWidth = 2;
+        fpCx.strokeRect(btl.x, btl.y, bbr.x-btl.x, bbr.y-btl.y);
+
+        // 方角ラベル
+        fpCx.fillStyle = '#555'; fpCx.font = 'bold 12px sans-serif';
+        fpCx.textAlign = 'center';
+        const lN = fpW2C(0,-td/2); fpCx.fillText('北 N', lN.x, lN.y-8);
+        const lS = fpW2C(0, td/2); fpCx.fillText('南 S', lS.x, lS.y+16);
+        fpCx.textAlign = 'left';
+        const lE = fpW2C(tw/2,0);  fpCx.fillText('東 E', lE.x+8, lE.y+4);
+        fpCx.textAlign = 'right';
+        const lW = fpW2C(-tw/2,0); fpCx.fillText('西 W', lW.x-8, lW.y+4);
+
+        // 隣接エリア
+        for (const area of fpAreas) {
+            const p = fpW2C(area.x, area.y);
+            fpCx.fillStyle = 'rgba(80,80,80,0.35)';
+            fpCx.fillRect(p.x, p.y, area.w*s, area.h*s);
+            fpCx.strokeStyle = '#444'; fpCx.lineWidth = 1.5;
+            fpCx.strokeRect(p.x, p.y, area.w*s, area.h*s);
+            fpCx.fillStyle = '#333'; fpCx.font = 'bold 11px sans-serif'; fpCx.textAlign = 'center';
+            fpCx.fillText('隣接ブース', p.x+area.w*s/2, p.y+area.h*s/2);
+        }
+
+        // 隣接エリア描画プレビュー
+        if (fpMode2 === 'area' && fpAreaStart && fpAreaCurr) {
+            const p0 = fpW2C(fpAreaStart.x,fpAreaStart.y), p1 = fpW2C(fpAreaCurr.x,fpAreaCurr.y);
+            fpCx.fillStyle = 'rgba(80,80,80,0.2)';
+            fpCx.fillRect(Math.min(p0.x,p1.x),Math.min(p0.y,p1.y),Math.abs(p1.x-p0.x),Math.abs(p1.y-p0.y));
+            fpCx.strokeStyle='#444';fpCx.lineWidth=1;
+            fpCx.strokeRect(Math.min(p0.x,p1.x),Math.min(p0.y,p1.y),Math.abs(p1.x-p0.x),Math.abs(p1.y-p0.y));
+        }
+
+        // 什器
+        for (let i = 0; i < fpItems.length; i++) {
+            const it = fpItems[i], c = fpW2C(it.x, it.y);
+            fpCx.save();
+            fpCx.translate(c.x, c.y);
+            fpCx.rotate(it.angle * Math.PI / 180);
+            const pw = it.w*s, ph = it.d*s;
+            fpCx.fillStyle   = i===fpSelectedIdx ? '#b8d0ff' : '#d8d8d8';
+            fpCx.strokeStyle = i===fpSelectedIdx ? '#0047AB'  : '#777';
+            fpCx.lineWidth   = i===fpSelectedIdx ? 2 : 1;
+            fpCx.fillRect(-pw/2,-ph/2,pw,ph);
+            fpCx.strokeRect(-pw/2,-ph/2,pw,ph);
+            const fs = Math.min(11, Math.max(7, Math.min(pw,ph)*0.35));
+            fpCx.fillStyle = i===fpSelectedIdx ? '#002280' : '#333';
+            fpCx.font = `${fs}px sans-serif`;
+            fpCx.textAlign = 'center'; fpCx.textBaseline = 'middle';
+            if (pw > 18 && ph > 8) fpCx.fillText(it.label, 0, 0);
+            fpCx.restore();
+        }
+
+        // 矢印
+        for (const a of fpArrows) {
+            const p0 = fpW2C(a.x1,a.y1), p1 = fpW2C(a.x2,a.y2);
+            fpDrawArrow(p0.x,p0.y,p1.x,p1.y, a.type==='main');
+        }
+
+        // 矢印描画プレビュー
+        if ((fpMode2==='arrow_main'||fpMode2==='arrow_sub') && fpArrowStart) {
+            const p0 = fpW2C(fpArrowStart.x,fpArrowStart.y), p1 = fpW2C(fpMouse.x,fpMouse.y);
+            fpDrawArrow(p0.x,p0.y,p1.x,p1.y, fpMode2==='arrow_main');
+        }
+    }
+
+    function fpGetItemAt(wx, wy) {
+        for (let i = fpItems.length-1; i >= 0; i--) {
+            const it = fpItems[i];
+            const ang = -it.angle * Math.PI / 180;
+            const dx = wx-it.x, dy = wy-it.y;
+            const lx = dx*Math.cos(ang) - dy*Math.sin(ang);
+            const ly = dx*Math.sin(ang) + dy*Math.cos(ang);
+            if (Math.abs(lx) <= it.w/2 && Math.abs(ly) <= it.d/2) return i;
+        }
+        return -1;
+    }
+
+    function fpGetCP(e) {
+        const r = fpCv.getBoundingClientRect();
+        return { x: e.clientX-r.left, y: e.clientY-r.top };
+    }
+
+    fpCv.addEventListener('mousemove', e => {
+        const cp = fpGetCP(e), wp = fpC2W(cp.x,cp.y);
+        fpMouse = wp;
+        if (fpMode2==='select' && fpDragging && fpSelectedIdx>=0) {
+            fpItems[fpSelectedIdx].x = fpSnap(wp.x+fpDragOffX);
+            fpItems[fpSelectedIdx].y = fpSnap(wp.y+fpDragOffY);
+        }
+        fpDraw();
+    });
+
+    fpCv.addEventListener('mousedown', e => {
+        const cp = fpGetCP(e), wp = fpC2W(cp.x,cp.y);
+        if (fpMode2==='place' && fpPlaceId) {
+            const def = FP_FURNITURE.find(f=>f.id===fpPlaceId);
+            if (!def) return;
+            fpItems.push({ id:def.id, label:def.label, x:fpSnap(wp.x), y:fpSnap(wp.y), w:def.w, d:def.d, angle:0 });
+            fpSelectedIdx = fpItems.length-1;
+            window.fpSetMode('select'); fpDraw(); return;
+        }
+        if (fpMode2==='arrow_main'||fpMode2==='arrow_sub') { fpArrowStart=wp; return; }
+        if (fpMode2==='area') {
+            fpAreaStart={x:fpSnap(wp.x),y:fpSnap(wp.y)};
+            fpAreaCurr={...fpAreaStart}; return;
+        }
+        const idx = fpGetItemAt(wp.x,wp.y);
+        fpSelectedIdx = idx;
+        if (idx>=0) {
+            fpDragging=true;
+            fpDragOffX=fpItems[idx].x-wp.x;
+            fpDragOffY=fpItems[idx].y-wp.y;
+        }
+        fpDraw();
+    });
+
+    fpCv.addEventListener('mouseup', e => {
+        const cp = fpGetCP(e), wp = fpC2W(cp.x,cp.y);
+        if ((fpMode2==='arrow_main'||fpMode2==='arrow_sub') && fpArrowStart) {
+            if (Math.hypot(wp.x-fpArrowStart.x, wp.y-fpArrowStart.y)>0.3)
+                fpArrows.push({type:fpMode2==='arrow_main'?'main':'sub',x1:fpArrowStart.x,y1:fpArrowStart.y,x2:wp.x,y2:wp.y});
+            fpArrowStart=null; fpDraw(); return;
+        }
+        if (fpMode2==='area' && fpAreaStart) {
+            const x0=Math.min(fpAreaStart.x,fpSnap(wp.x)), y0=Math.min(fpAreaStart.y,fpSnap(wp.y));
+            const aw=Math.abs(fpSnap(wp.x)-fpAreaStart.x), ah=Math.abs(fpSnap(wp.y)-fpAreaStart.y);
+            if (aw>0.1&&ah>0.1) fpAreas.push({x:x0,y:y0,w:aw,h:ah});
+            fpAreaStart=null; fpAreaCurr=null; window.fpSetMode('select'); fpDraw(); return;
+        }
+        fpDragging=false;
+    });
+
+    window.addEventListener('keydown', e => {
+        if (currentMode!=='fp') return;
+        if (e.key==='Delete'||e.key==='Backspace') {
+            if (fpSelectedIdx>=0) { e.preventDefault(); fpItems.splice(fpSelectedIdx,1); fpSelectedIdx=-1; fpDraw(); }
+        }
+        if (e.key==='r'||e.key==='R') {
+            if (fpSelectedIdx>=0) { fpItems[fpSelectedIdx].angle=(fpItems[fpSelectedIdx].angle+90)%360; fpDraw(); }
+        }
+        if (e.key==='Escape') { window.fpSetMode('select'); fpArrowStart=null; fpAreaStart=null; fpAreaCurr=null; fpDraw(); }
+    });
+
+    window.fpSetMode = function(mode, placeId) {
+        fpMode2=mode; fpPlaceId=placeId||null;
+        document.querySelectorAll('.fp-btn[data-mode]').forEach(b=>b.classList.remove('active'));
+        document.querySelectorAll('.fp-icon-btn[data-place]').forEach(b=>b.classList.remove('active'));
+        if (mode!=='select'&&mode!=='place') {
+            const b=document.querySelector(`.fp-btn[data-mode="${mode}"]`);
+            if (b) b.classList.add('active');
+        }
+        if (mode==='place'&&placeId) {
+            const b=document.querySelector(`.fp-icon-btn[data-place="${placeId}"]`);
+            if (b) b.classList.add('active');
+        }
+        fpCv.style.cursor = mode==='select'?'default':'crosshair';
+    };
+
+    window.fpUpdateStalls = function() {
+        fpStallsW=Math.max(1,parseInt(document.getElementById('fp-stalls-w').value)||2);
+        fpStallsD=Math.max(1,parseInt(document.getElementById('fp-stalls-d').value)||2);
+        fpDraw();
+    };
+
+    window.switchMode = function(mode) {
+        if (mode==='fp' && visitorMode) toggleVisitorMode();
+        currentMode=mode;
+        const is3d=mode==='3d';
+        document.getElementById('tab-bar').style.display         = is3d?'flex':'none';
+        document.getElementById('ui').style.display              = is3d?'block':'none';
+        document.getElementById('bottom-bar').style.display      = is3d?'flex':'none';
+        document.getElementById('debug-overlay').style.display   = 'none';
+        document.getElementById('three-canvas').style.display    = is3d?'block':'none';
+        document.getElementById('fp-container').style.display    = is3d?'none':'flex';
+        document.getElementById('mode-btn-3d').classList.toggle('active', is3d);
+        document.getElementById('mode-btn-fp').classList.toggle('active', !is3d);
+        if (!is3d) { fpResizeCv(); fpDraw(); }
+    };
+
+    window.fpConvertTo3D = function() {
+        window.switchMode('3d');
+        pushHistory();
+        objects.forEach(o=>scene.remove(o)); objects.length=0;
+        const SIMPLE = new Set(['lease_counter','pillar','pamph']);
+        for (const item of fpItems) {
+            if (item.id==='wall') {
+                const wallH=3.0, actualW=(item.angle===90||item.angle===270)?item.d:item.w;
+                const m=new THREE.Mesh(
+                    new THREE.BoxGeometry(actualW,wallH,0.1),
+                    new THREE.MeshLambertMaterial({color:BU_CONFIG[currentBU].primaryColor})
+                );
+                m.position.set(item.x,wallH/2,item.y);
+                m.rotation.y=item.angle*Math.PI/180;
+                m.userData={isWall:true,wallColor:BU_CONFIG[currentBU].primaryColor,wallW:actualW,wallH};
+                scene.add(m); objects.push(m);
+            } else if (SIMPLE.has(item.id)) {
+                window.addSimpleItem(item.id,true);
+                const obj=objects[objects.length-1];
+                obj.position.set(item.x,obj.position.y,item.y);
+                obj.rotation.y=item.angle*Math.PI/180;
+            } else {
+                window.addDetailedItem(item.id,true);
+                const obj=objects[objects.length-1];
+                obj.position.set(item.x,obj.position.y,item.y);
+                obj.rotation.y=item.angle*Math.PI/180;
+            }
+        }
+        select(null); updateItemList(); updateAreaInfo();
+    };
+
+    window.serializeFp = function() {
+        return { stallsW:fpStallsW, stallsD:fpStallsD, items:JSON.parse(JSON.stringify(fpItems)), arrows:JSON.parse(JSON.stringify(fpArrows)), areas:JSON.parse(JSON.stringify(fpAreas)) };
+    };
+
+    window.restoreFp = function(data) {
+        if (!data) return;
+        fpStallsW=data.stallsW||2; fpStallsD=data.stallsD||2;
+        document.getElementById('fp-stalls-w').value=fpStallsW;
+        document.getElementById('fp-stalls-d').value=fpStallsD;
+        fpItems=data.items||[]; fpArrows=data.arrows||[]; fpAreas=data.areas||[];
+        if (currentMode==='fp') fpDraw();
+    };
+
+    // 什器アイコンボタンを動的生成
+    (function() {
+        const container=document.getElementById('fp-furniture-list');
+        FP_FURNITURE.forEach(def=>{
+            const mx=Math.max(def.w,def.d);
+            const pw=Math.max(8,Math.round(def.w/mx*38));
+            const ph=Math.max(4,Math.round(def.d/mx*38));
+            const btn=document.createElement('button');
+            btn.className='fp-icon-btn'; btn.dataset.place=def.id;
+            btn.innerHTML=`<span class="fp-icon-preview" style="width:${pw}px;height:${ph}px;"></span><span style="flex:1;">${def.label}<br><span style="color:#aaa;font-size:9px;">${def.w}×${def.d}m</span></span>`;
+            btn.onclick=()=>window.fpSetMode('place',def.id);
+            container.appendChild(btn);
+        });
+    })();
 
     // ===== メインループ =====
     switchBU('SS');
@@ -1343,6 +1855,7 @@
         camera.aspect=window.innerWidth/window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth,window.innerHeight);
+        if (currentMode === 'fp') { fpResizeCv(); fpDraw(); }
     });
 </script>
 </body>
