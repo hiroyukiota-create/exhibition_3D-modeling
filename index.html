@@ -413,14 +413,20 @@
             <div style="font-size:9px;color:#aaa;margin-bottom:4px;">クリックで選択 → キャンバスをクリックして配置</div>
             <div id="fp-furniture-list"></div>
         </div>
+        <div class="fp-section">
+            <h3>操作履歴</h3>
+            <button class="fp-btn gray" id="fp-undo-btn" onclick="fpUndo()" disabled>↩ 元に戻す</button>
+        </div>
         <div class="fp-section" style="border:none;margin-bottom:0;">
             <h3>操作ガイド</h3>
             <div style="font-size:9px;color:#666;line-height:1.8;">
-                ・配置後にドラッグで移動<br>
+                ・ドラッグ：グリッド合わせで移動<br>
+                ・<kbd>↑↓←→</kbd>：0.1m単位で微調整<br>
+                ・<kbd>Shift</kbd>+<kbd>↑↓←→</kbd>：1m単位で移動<br>
                 ・<kbd>R</kbd>：選択什器を90°回転<br>
                 ・<kbd>Delete</kbd>：選択什器を削除<br>
-                ・<kbd>ESC</kbd>：モードをキャンセル<br>
-                ・グリッドスナップ（1m単位）
+                ・<kbd>⌘Z</kbd> / <kbd>Ctrl+Z</kbd>：元に戻す<br>
+                ・<kbd>ESC</kbd>：モードをキャンセル
             </div>
         </div>
     </div>
@@ -455,7 +461,7 @@
             { id: 'demo_old', label: '旧デモ台 W500', size: 'W500', type: 'detailed' },
             { id: 'pillar', label: '柱', size: 'W500', type: 'simple' },
             { id: 'pillar_led', label: '柱 LED付', size: 'W500', type: 'detailed' },
-            { id: 'lease_counter', label: 'リースカウンター', size: 'W1200', type: 'simple' },
+            { id: 'lease_counter', label: 'リースカウンター', size: 'W1200', type: 'detailed' },
             { id: 'pamph', label: 'パンフ台', size: 'W500', type: 'simple' },
             { id: 'wall_monitor', label: '壁掛けモニター', size: '65型', type: 'detailed' },
             { id: 'table', label: 'テーブル W1800', type: 'detailed' },
@@ -467,7 +473,7 @@
             { id: 'demo_new', label: '新デモ台 W700', size: 'W700', type: 'detailed' },
             { id: 'demo_old', label: '旧デモ台 W500', size: 'W500', type: 'detailed' },
             { id: 'pillar', label: '柱', size: 'W500', type: 'simple' },
-            { id: 'lease_counter', label: 'リースカウンター', size: 'W1200', type: 'simple' },
+            { id: 'lease_counter', label: 'リースカウンター', size: 'W1200', type: 'detailed' },
             { id: 'pamph', label: 'パンフ台', size: 'W500', type: 'simple' },
             { id: 'wall_monitor', label: '壁掛けモニター', size: '65型', type: 'detailed' },
             { id: 'table', label: 'テーブル W1800', type: 'detailed' },
@@ -479,7 +485,7 @@
             { id: 'demo_new', label: '新デモ台 W700', size: 'W700', type: 'detailed' },
             { id: 'demo_old', label: '旧デモ台 W500', size: 'W500', type: 'detailed' },
             { id: 'pillar', label: '柱', size: 'W500', type: 'simple' },
-            { id: 'lease_counter', label: 'リースカウンター', size: 'W1200', type: 'simple' },
+            { id: 'lease_counter', label: 'リースカウンター', size: 'W1200', type: 'detailed' },
             { id: 'pamph', label: 'パンフ台', size: 'W500', type: 'simple' },
             { id: 'wall_monitor', label: '壁掛けモニター', size: '65型', type: 'detailed' },
             { id: 'table', label: 'テーブル W1800', type: 'detailed' },
@@ -1037,6 +1043,91 @@
                 const shelf = new THREE.Mesh(new THREE.BoxGeometry(fw, ft, fd), shelfMat);
                 shelf.position.set(0, sy, 0); group.add(shelf);
             });
+        } else if (type === 'lease_counter') {
+            // Canvas texture for front face
+            const cv = document.createElement('canvas');
+            cv.width = 600; cv.height = 465;
+            const cx2 = cv.getContext('2d');
+
+            cx2.fillStyle = '#f4f4f4';
+            cx2.fillRect(0, 0, 600, 465);
+            cx2.fillStyle = '#ffffff';
+            cx2.fillRect(2, 2, 596, 461);
+
+            // Blue top stripe
+            cx2.fillStyle = '#0047AB';
+            cx2.fillRect(0, 0, 600, 22);
+
+            // Left illustration panel background
+            const divX = 210;
+            cx2.fillStyle = '#eef4ff';
+            cx2.fillRect(8, 28, divX - 8, 430);
+
+            // Person head
+            cx2.fillStyle = '#2d6fc0';
+            cx2.beginPath(); cx2.arc(85, 115, 20, 0, Math.PI*2); cx2.fill();
+            // Person body
+            cx2.fillRect(72, 135, 26, 48);
+            // Arm pointing at chart
+            cx2.beginPath(); cx2.moveTo(98, 150); cx2.lineTo(155, 125);
+            cx2.strokeStyle = '#2d6fc0'; cx2.lineWidth = 4; cx2.stroke();
+
+            // Bar chart
+            cx2.fillStyle = '#4a8fd4'; cx2.fillRect(150, 78, 14, 62);
+            cx2.fillStyle = '#6aaae8'; cx2.fillRect(168, 96, 14, 44);
+            cx2.fillStyle = '#8cc4f0'; cx2.fillRect(186, 110, 14, 30);
+
+            // Uptrend arrow
+            cx2.beginPath(); cx2.moveTo(150, 138); cx2.lineTo(198, 78);
+            cx2.strokeStyle = '#cc2200'; cx2.lineWidth = 2.5; cx2.stroke();
+            cx2.beginPath(); cx2.moveTo(198, 78); cx2.lineTo(190, 88); cx2.lineTo(206, 88); cx2.closePath();
+            cx2.fillStyle = '#cc2200'; cx2.fill();
+
+            // Business cards
+            cx2.strokeStyle = '#3a7acc'; cx2.lineWidth = 1.5;
+            for (let i=0; i<3; i++) {
+                cx2.save(); cx2.translate(78+i*30, 220+i*6); cx2.rotate((-12+i*12)*Math.PI/180);
+                cx2.fillStyle='#ffffff'; cx2.fillRect(-22,-13,44,26); cx2.strokeRect(-22,-13,44,26);
+                cx2.restore();
+            }
+
+            // Right text
+            cx2.fillStyle = '#1a2e5a';
+            cx2.font = 'bold 36px "Hiragino Kaku Gothic ProN","Meiryo",sans-serif';
+            cx2.textAlign = 'left'; cx2.textBaseline = 'top';
+            cx2.fillText('名刺管理から、', divX+14, 105);
+            cx2.fillText('収益を最大化する', divX+14, 158);
+            // Underline
+            cx2.fillStyle = '#0047AB';
+            cx2.fillRect(divX+14, 210, 155, 3);
+            // Sansan logo
+            cx2.fillStyle = '#0047AB';
+            cx2.font = 'bold 30px "Helvetica Neue",Arial,sans-serif';
+            cx2.textAlign = 'right';
+            cx2.fillText('Sansan', 588, 390);
+
+            const lcTex = new THREE.CanvasTexture(cv);
+
+            // Body (white)
+            const lcBody = new THREE.Mesh(
+                new THREE.BoxGeometry(1.2, 0.93, 0.6),
+                new THREE.MeshLambertMaterial({ color: 0xf2f2f2 })
+            );
+            lcBody.position.y = 0.465; group.add(lcBody);
+
+            // Blue top strip
+            const lcStrip = new THREE.Mesh(
+                new THREE.BoxGeometry(1.22, 0.022, 0.62),
+                new THREE.MeshLambertMaterial({ color: 0x0047AB })
+            );
+            lcStrip.position.y = 0.941; group.add(lcStrip);
+
+            // Front face texture panel
+            const lcFront = new THREE.Mesh(
+                new THREE.PlaneGeometry(1.2, 0.88),
+                new THREE.MeshBasicMaterial({ map: lcTex })
+            );
+            lcFront.position.set(0, 0.465, 0.302); group.add(lcFront);
         }
         group.userData.type='group'; group.userData.itemType=type; group.userData.bu=currentBU;
         if (type === 'wall_monitor') group.position.y = group.userData.monitorY || 1.5;
@@ -1046,8 +1137,7 @@
     window.addSimpleItem = function(type, skipHistory) {
         if (!skipHistory) pushHistory();
         let geo, col;
-        if (type==='lease_counter') { geo=new THREE.BoxGeometry(1.2,0.93,0.6); col=0xe67e22; }
-        else if (type==='pillar') { geo=new THREE.BoxGeometry(0.5,2.2,0.5); col=new THREE.Color(WALL_COLOR()); }
+        if (type==='pillar') { geo=new THREE.BoxGeometry(0.5,2.2,0.5); col=new THREE.Color(WALL_COLOR()); }
         else { geo=new THREE.BoxGeometry(0.5,1.2,0.5); col=0xf1c40f; }
         const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({color:col}));
         m.position.y=geo.parameters.height/2;
@@ -1527,6 +1617,35 @@
     let fpArrowStart = null, fpAreaStart = null, fpAreaCurr = null;
     let fpMouse = { x: 0, y: 0 };
 
+    const fpUndoStack = [];
+    const FP_MAX_HISTORY = 50;
+    let fpDragInitState = null;
+
+    function fpSnapshotNow() {
+        return JSON.stringify({ items: fpItems, arrows: fpArrows, areas: fpAreas });
+    }
+
+    function fpPushHistory() {
+        fpUndoStack.push(fpSnapshotNow());
+        if (fpUndoStack.length > FP_MAX_HISTORY) fpUndoStack.shift();
+        document.getElementById('fp-undo-btn').disabled = false;
+    }
+
+    function fpPushRaw(snapshot) {
+        fpUndoStack.push(snapshot);
+        if (fpUndoStack.length > FP_MAX_HISTORY) fpUndoStack.shift();
+        document.getElementById('fp-undo-btn').disabled = false;
+    }
+
+    window.fpUndo = function() {
+        if (fpUndoStack.length === 0) return;
+        const state = JSON.parse(fpUndoStack.pop());
+        fpItems = state.items; fpArrows = state.arrows; fpAreas = state.areas;
+        fpSelectedIdx = -1;
+        fpDraw();
+        document.getElementById('fp-undo-btn').disabled = fpUndoStack.length === 0;
+    };
+
     const fpCv = document.getElementById('fp-canvas');
     const fpCx = fpCv.getContext('2d');
 
@@ -1695,6 +1814,7 @@
         if (fpMode2==='place' && fpPlaceId) {
             const def = FP_FURNITURE.find(f=>f.id===fpPlaceId);
             if (!def) return;
+            fpPushHistory();
             fpItems.push({ id:def.id, label:def.label, x:fpSnap(wp.x), y:fpSnap(wp.y), w:def.w, d:def.d, angle:0 });
             fpSelectedIdx = fpItems.length-1;
             window.fpSetMode('select'); fpDraw(); return;
@@ -1710,6 +1830,7 @@
             fpDragging=true;
             fpDragOffX=fpItems[idx].x-wp.x;
             fpDragOffY=fpItems[idx].y-wp.y;
+            fpDragInitState = fpSnapshotNow();
         }
         fpDraw();
     });
@@ -1717,26 +1838,50 @@
     fpCv.addEventListener('mouseup', e => {
         const cp = fpGetCP(e), wp = fpC2W(cp.x,cp.y);
         if ((fpMode2==='arrow_main'||fpMode2==='arrow_sub') && fpArrowStart) {
-            if (Math.hypot(wp.x-fpArrowStart.x, wp.y-fpArrowStart.y)>0.3)
+            if (Math.hypot(wp.x-fpArrowStart.x, wp.y-fpArrowStart.y)>0.3) {
+                fpPushHistory();
                 fpArrows.push({type:fpMode2==='arrow_main'?'main':'sub',x1:fpArrowStart.x,y1:fpArrowStart.y,x2:wp.x,y2:wp.y});
+            }
             fpArrowStart=null; fpDraw(); return;
         }
         if (fpMode2==='area' && fpAreaStart) {
             const x0=Math.min(fpAreaStart.x,fpSnap(wp.x)), y0=Math.min(fpAreaStart.y,fpSnap(wp.y));
             const aw=Math.abs(fpSnap(wp.x)-fpAreaStart.x), ah=Math.abs(fpSnap(wp.y)-fpAreaStart.y);
-            if (aw>0.1&&ah>0.1) fpAreas.push({x:x0,y:y0,w:aw,h:ah});
+            if (aw>0.1&&ah>0.1) { fpPushHistory(); fpAreas.push({x:x0,y:y0,w:aw,h:ah}); }
             fpAreaStart=null; fpAreaCurr=null; window.fpSetMode('select'); fpDraw(); return;
+        }
+        if (fpDragging && fpSelectedIdx>=0 && fpDragInitState) {
+            const before = JSON.parse(fpDragInitState);
+            const item = fpItems[fpSelectedIdx];
+            if (before.items[fpSelectedIdx] &&
+                (before.items[fpSelectedIdx].x !== item.x || before.items[fpSelectedIdx].y !== item.y)) {
+                fpPushRaw(fpDragInitState);
+            }
+            fpDragInitState = null;
         }
         fpDragging=false;
     });
 
     window.addEventListener('keydown', e => {
         if (currentMode!=='fp') return;
+        if ((e.ctrlKey||e.metaKey) && e.key==='z' && !e.shiftKey) { e.preventDefault(); window.fpUndo(); return; }
         if (e.key==='Delete'||e.key==='Backspace') {
-            if (fpSelectedIdx>=0) { e.preventDefault(); fpItems.splice(fpSelectedIdx,1); fpSelectedIdx=-1; fpDraw(); }
+            if (fpSelectedIdx>=0) { e.preventDefault(); fpPushHistory(); fpItems.splice(fpSelectedIdx,1); fpSelectedIdx=-1; fpDraw(); }
         }
         if (e.key==='r'||e.key==='R') {
-            if (fpSelectedIdx>=0) { fpItems[fpSelectedIdx].angle=(fpItems[fpSelectedIdx].angle+90)%360; fpDraw(); }
+            if (fpSelectedIdx>=0) { fpPushHistory(); fpItems[fpSelectedIdx].angle=(fpItems[fpSelectedIdx].angle+90)%360; fpDraw(); }
+        }
+        const ARROW_KEYS = ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'];
+        if (ARROW_KEYS.includes(e.key) && fpSelectedIdx>=0) {
+            e.preventDefault();
+            fpPushHistory();
+            const step = e.shiftKey ? 1.0 : 0.1;
+            const it = fpItems[fpSelectedIdx];
+            if (e.key==='ArrowLeft')  it.x = Math.round((it.x - step) * 10) / 10;
+            if (e.key==='ArrowRight') it.x = Math.round((it.x + step) * 10) / 10;
+            if (e.key==='ArrowUp')    it.y = Math.round((it.y - step) * 10) / 10;
+            if (e.key==='ArrowDown')  it.y = Math.round((it.y + step) * 10) / 10;
+            fpDraw(); return;
         }
         if (e.key==='Escape') { window.fpSetMode('select'); fpArrowStart=null; fpAreaStart=null; fpAreaCurr=null; fpDraw(); }
     });
@@ -1781,7 +1926,7 @@
         window.switchMode('3d');
         pushHistory();
         objects.forEach(o=>scene.remove(o)); objects.length=0;
-        const SIMPLE = new Set(['lease_counter','pillar','pamph']);
+        const SIMPLE = new Set(['pillar','pamph']);
         for (const item of fpItems) {
             if (item.id==='wall') {
                 const wallH=3.0, actualW=(item.angle===90||item.angle===270)?item.d:item.w;
