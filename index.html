@@ -389,13 +389,14 @@
 <div id="fp-container">
     <div id="fp-panel">
         <div class="fp-section">
-            <h3>小間設定</h3>
+            <h3>ブースサイズ設定</h3>
             <div class="fp-stall-row">
-                <label>横W:</label><input type="number" id="fp-stalls-w" value="2" min="1" max="10" onchange="fpUpdateStalls()">
-                <label>縦D:</label><input type="number" id="fp-stalls-d" value="2" min="1" max="10" onchange="fpUpdateStalls()">
-                <span style="font-size:9px;color:#aaa;">小間</span>
+                <label>横W:</label><input type="number" id="fp-booth-w" value="6" min="1" max="100" step="1">
+                <label style="font-size:10px;color:#888;">m</label>
+                <label>縦D:</label><input type="number" id="fp-booth-d" value="6" min="1" max="100" step="1">
+                <label style="font-size:10px;color:#888;">m</label>
             </div>
-            <div style="font-size:9px;color:#aaa;margin-top:2px;">1小間 = 3m × 3m</div>
+            <button class="fp-btn" style="margin-top:4px;" onclick="fpUpdateSize()">更新</button>
         </div>
         <div class="fp-section">
             <h3>導線</h3>
@@ -1611,7 +1612,8 @@
     const FP_AISLE = 2.5, FP_STALL = 3;
 
     let fpItems = [], fpArrows = [], fpAreas = [];
-    let fpStallsW = 2, fpStallsD = 2;
+    let fpStallsW = 2, fpStallsD = 2; // 後方互換用（未使用）
+    let fpBoothWm = 6, fpBoothDm = 6; // ブースサイズ（メートル）
     let fpMode2 = 'select', fpPlaceId = null, fpSelectedIdx = -1;
     let fpDragging = false, fpDragOffX = 0, fpDragOffY = 0;
     let fpArrowStart = null, fpAreaStart = null, fpAreaCurr = null;
@@ -1649,8 +1651,8 @@
     const fpCv = document.getElementById('fp-canvas');
     const fpCx = fpCv.getContext('2d');
 
-    function fpBoothW() { return fpStallsW * FP_STALL; }
-    function fpBoothD() { return fpStallsD * FP_STALL; }
+    function fpBoothW() { return fpBoothWm; }
+    function fpBoothD() { return fpBoothDm; }
 
     function fpScale() {
         const PAD = 50, bw = fpBoothW() + 2*FP_AISLE, bd = fpBoothD() + 2*FP_AISLE;
@@ -1704,7 +1706,7 @@
         fpCx.fillStyle = '#fff';
         fpCx.fillRect(btl.x, btl.y, bbr.x-btl.x, bbr.y-btl.y);
 
-        // グリッド線（1m）
+        // グリッド線（1m）＋メートルラベル
         fpCx.strokeStyle = '#ddd'; fpCx.lineWidth = 0.5;
         for (let gx = -bw/2; gx <= bw/2; gx++) {
             const p0 = fpW2C(gx,-bd/2), p1 = fpW2C(gx,bd/2);
@@ -1714,6 +1716,24 @@
             const p0 = fpW2C(-bw/2,gy), p1 = fpW2C(bw/2,gy);
             fpCx.beginPath(); fpCx.moveTo(p0.x,p0.y); fpCx.lineTo(p1.x,p1.y); fpCx.stroke();
         }
+        // メートル目盛りラベル（ブース左端・上端）
+        fpCx.fillStyle = '#aaa'; fpCx.font = '9px sans-serif'; fpCx.textAlign = 'right'; fpCx.textBaseline = 'middle';
+        for (let gx = -bw/2; gx <= bw/2; gx++) {
+            if (gx === -bw/2) continue;
+            const p = fpW2C(gx, -bd/2);
+            fpCx.textAlign = 'center'; fpCx.textBaseline = 'bottom';
+            fpCx.fillText(`${gx + bw/2}`, p.x, p.y - 2);
+        }
+        fpCx.textAlign = 'right'; fpCx.textBaseline = 'middle';
+        for (let gy = -bd/2; gy <= bd/2; gy++) {
+            if (gy === -bd/2) continue;
+            const p = fpW2C(-bw/2, gy);
+            fpCx.fillText(`${gy + bd/2}`, p.x - 2, p.y);
+        }
+        // 単位表示
+        const labelPos = fpW2C(-bw/2, -bd/2);
+        fpCx.fillStyle = '#bbb'; fpCx.font = 'bold 9px sans-serif'; fpCx.textAlign = 'right'; fpCx.textBaseline = 'bottom';
+        fpCx.fillText('m', labelPos.x - 2, labelPos.y - 2);
 
         // ブース外枠
         fpCx.strokeStyle = '#555'; fpCx.lineWidth = 2;
@@ -1901,9 +1921,13 @@
         fpCv.style.cursor = mode==='select'?'default':'crosshair';
     };
 
-    window.fpUpdateStalls = function() {
-        fpStallsW=Math.max(1,parseInt(document.getElementById('fp-stalls-w').value)||2);
-        fpStallsD=Math.max(1,parseInt(document.getElementById('fp-stalls-d').value)||2);
+    window.fpUpdateStalls = function() {}; // 後方互換用
+
+    window.fpUpdateSize = function() {
+        fpBoothWm = Math.max(1, parseFloat(document.getElementById('fp-booth-w').value) || 6);
+        fpBoothDm = Math.max(1, parseFloat(document.getElementById('fp-booth-d').value) || 6);
+        document.getElementById('fp-booth-w').value = fpBoothWm;
+        document.getElementById('fp-booth-d').value = fpBoothDm;
         fpDraw();
     };
 
@@ -1954,14 +1978,16 @@
     };
 
     window.serializeFp = function() {
-        return { stallsW:fpStallsW, stallsD:fpStallsD, items:JSON.parse(JSON.stringify(fpItems)), arrows:JSON.parse(JSON.stringify(fpArrows)), areas:JSON.parse(JSON.stringify(fpAreas)) };
+        return { boothWm:fpBoothWm, boothDm:fpBoothDm, stallsW:fpBoothWm, stallsD:fpBoothDm, items:JSON.parse(JSON.stringify(fpItems)), arrows:JSON.parse(JSON.stringify(fpArrows)), areas:JSON.parse(JSON.stringify(fpAreas)) };
     };
 
     window.restoreFp = function(data) {
         if (!data) return;
-        fpStallsW=data.stallsW||2; fpStallsD=data.stallsD||2;
-        document.getElementById('fp-stalls-w').value=fpStallsW;
-        document.getElementById('fp-stalls-d').value=fpStallsD;
+        // boothWm/boothDm を優先。旧形式（stallsW/D）はコマ単位なので3倍換算でフォールバック
+        fpBoothWm = data.boothWm != null ? data.boothWm : (data.stallsW != null ? data.stallsW * FP_STALL : 6);
+        fpBoothDm = data.boothDm != null ? data.boothDm : (data.stallsD != null ? data.stallsD * FP_STALL : 6);
+        document.getElementById('fp-booth-w').value = fpBoothWm;
+        document.getElementById('fp-booth-d').value = fpBoothDm;
         fpItems=data.items||[]; fpArrows=data.arrows||[]; fpAreas=data.areas||[];
         if (currentMode==='fp') fpDraw();
     };
